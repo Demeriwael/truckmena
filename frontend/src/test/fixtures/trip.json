@@ -1,0 +1,247 @@
+{
+  "route": {
+    "geometry": [
+      [0.0, 0.0],
+      [0.0, 1.0],
+      [1.0, 1.0],
+      [1.0, 3.0],
+      [1.0, 4.0]
+    ],
+    "total_miles": 165.0,
+    "legs": [
+      {
+        "miles": 110.0,
+        "from": "Current",
+        "to": "Pickup"
+      },
+      {
+        "miles": 55.0,
+        "from": "Pickup",
+        "to": "Dropoff"
+      }
+    ],
+    "provider": "ors",
+    "profile": "driving-hgv",
+    "provider_duration_hours": 0.03333333333333333,
+    "attribution": ["\u00a9 OpenStreetMap contributors", "openrouteservice / HeiGIT"]
+  },
+  "summary": {
+    "total_miles": 165.0,
+    "total_driving_hours": 3.0,
+    "total_duration_hours": 5.0,
+    "log_days": 1,
+    "fuel_stops": 0,
+    "rests": 0,
+    "breaks": 0,
+    "restarts": 0,
+    "cycle_remaining_hours_at_end": 65.0
+  },
+  "events": [
+    {
+      "id": "event-start",
+      "type": "start",
+      "status": "OFF",
+      "start": "2026-10-03T08:00:00-05:00",
+      "end": "2026-10-03T08:00:00-05:00",
+      "duration_min": 0,
+      "lat": 0.0,
+      "lng": 0.0,
+      "place": "Current",
+      "mile_marker": 0.0,
+      "end_mile_marker": 0.0,
+      "note": "Trip starts"
+    },
+    {
+      "id": "event-0001",
+      "type": "driving",
+      "status": "DRIVING",
+      "start": "2026-10-03T08:00:00-05:00",
+      "end": "2026-10-03T10:00:00-05:00",
+      "duration_min": 120,
+      "lat": 0.0,
+      "lng": 0.0,
+      "place": "Current",
+      "mile_marker": 0.0,
+      "end_mile_marker": 110.0,
+      "note": "Drive toward Pickup"
+    },
+    {
+      "id": "event-0002",
+      "type": "pickup",
+      "status": "ON_DUTY",
+      "start": "2026-10-03T10:00:00-05:00",
+      "end": "2026-10-03T11:00:00-05:00",
+      "duration_min": 60,
+      "lat": 1.0,
+      "lng": 1.0,
+      "place": "Pickup",
+      "mile_marker": 110.0,
+      "end_mile_marker": 110.0,
+      "note": "Load freight at pickup"
+    },
+    {
+      "id": "event-0003",
+      "type": "driving",
+      "status": "DRIVING",
+      "start": "2026-10-03T11:00:00-05:00",
+      "end": "2026-10-03T12:00:00-05:00",
+      "duration_min": 60,
+      "lat": 1.0,
+      "lng": 1.0,
+      "place": "Pickup",
+      "mile_marker": 110.0,
+      "end_mile_marker": 165.0,
+      "note": "Drive toward Dropoff"
+    },
+    {
+      "id": "event-0004",
+      "type": "dropoff",
+      "status": "ON_DUTY",
+      "start": "2026-10-03T12:00:00-05:00",
+      "end": "2026-10-03T13:00:00-05:00",
+      "duration_min": 60,
+      "lat": 1.0,
+      "lng": 4.0,
+      "place": "Dropoff",
+      "mile_marker": 165.0,
+      "end_mile_marker": 165.0,
+      "note": "Unload freight at delivery"
+    }
+  ],
+  "logs": [
+    {
+      "date": "10/03/2026",
+      "iso_date": "2026-10-03",
+      "total_miles": 165.0,
+      "total_mileage_today": 165.0,
+      "cumulative_trip_miles": 165.0,
+      "totals": {
+        "off": 19.0,
+        "sleeper": 0.0,
+        "driving": 3.0,
+        "on_duty": 2.0
+      },
+      "totals_min": {
+        "off": 1140,
+        "sleeper": 0,
+        "driving": 180,
+        "on_duty": 120
+      },
+      "segments": [
+        {
+          "status": "OFF",
+          "start_min_of_day": 0,
+          "end_min_of_day": 480,
+          "place": "Current",
+          "start_mile_marker": 0.0,
+          "end_mile_marker": 0.0,
+          "event_id": null,
+          "is_padding": true
+        },
+        {
+          "status": "DRIVING",
+          "start_min_of_day": 480,
+          "end_min_of_day": 600,
+          "place": "Current",
+          "start_mile_marker": 0.0,
+          "end_mile_marker": 110.0,
+          "event_id": "event-0001",
+          "is_padding": false
+        },
+        {
+          "status": "ON_DUTY",
+          "start_min_of_day": 600,
+          "end_min_of_day": 660,
+          "place": "Pickup",
+          "start_mile_marker": 110.0,
+          "end_mile_marker": 110.0,
+          "event_id": "event-0002",
+          "is_padding": false
+        },
+        {
+          "status": "DRIVING",
+          "start_min_of_day": 660,
+          "end_min_of_day": 720,
+          "place": "Pickup",
+          "start_mile_marker": 110.0,
+          "end_mile_marker": 165.0,
+          "event_id": "event-0003",
+          "is_padding": false
+        },
+        {
+          "status": "ON_DUTY",
+          "start_min_of_day": 720,
+          "end_min_of_day": 780,
+          "place": "Dropoff",
+          "start_mile_marker": 165.0,
+          "end_mile_marker": 165.0,
+          "event_id": "event-0004",
+          "is_padding": false
+        },
+        {
+          "status": "OFF",
+          "start_min_of_day": 780,
+          "end_min_of_day": 1440,
+          "place": "Dropoff",
+          "start_mile_marker": 165.0,
+          "end_mile_marker": 165.0,
+          "event_id": null,
+          "is_padding": true
+        }
+      ],
+      "remarks": [
+        {
+          "minute_of_day": 480,
+          "place": "Current",
+          "note": "Drive toward Pickup"
+        },
+        {
+          "minute_of_day": 600,
+          "place": "Pickup",
+          "note": "Load freight at pickup"
+        },
+        {
+          "minute_of_day": 660,
+          "place": "Pickup",
+          "note": "Drive toward Dropoff"
+        },
+        {
+          "minute_of_day": 720,
+          "place": "Dropoff",
+          "note": "Unload freight at delivery"
+        },
+        {
+          "minute_of_day": 780,
+          "place": "Dropoff",
+          "note": "Trip finished; remaining day shown off duty"
+        }
+      ],
+      "recap": {
+        "a": 5.0,
+        "b": 65.0,
+        "c": 5.0,
+        "on_duty_today": 5.0,
+        "cycle_used_min": 300,
+        "available_min": 3900,
+        "last_five_days_on_duty_min": 300,
+        "restart_taken": false,
+        "restart_in_progress": false,
+        "notes": [
+          "Planning recap: prior daily history is unavailable; no rolling hours drop off. C uses the last five trip days, including today."
+        ]
+      },
+      "driver_name": "Demo Driver",
+      "carrier_name": "Demo Freight LLC",
+      "main_office_address": "Chicago, IL",
+      "home_terminal_address": "Chicago, IL",
+      "vehicle": "Truck 101 / Trailer 201",
+      "shipping_doc": "DEMO-001 / General freight",
+      "timezone_offset": "-05:00",
+      "period_start": "00:00",
+      "from": "Current",
+      "to": "Dropoff"
+    }
+  ],
+  "warnings": [],
+  "log_generation_available": true
+}

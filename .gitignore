@@ -17,6 +17,7 @@ env/
 *.egg-info/
 .eggs/
 .pytest_cache/
+.hypothesis/
 .ruff_cache/
 .mypy_cache/
 .tox/

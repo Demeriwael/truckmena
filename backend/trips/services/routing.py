@@ -179,7 +179,9 @@ def get_route(locations: Sequence[Location]) -> Route:
         payload = ors_request(
             "POST",
             "/v2/directions/driving-hgv/geojson",
-            json={"coordinates": points, "instructions": False},
+            # ORS removes the entire segments array when instructions are false.
+            # Keep instructions enabled to retain authoritative per-leg distances.
+            json={"coordinates": points, "instructions": True},
         )
         result = _parse_ors(payload)
     except ProviderFailure as error:

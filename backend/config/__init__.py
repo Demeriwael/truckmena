@@ -1,0 +1,1 @@
+"""Stateless Django API configuration."""

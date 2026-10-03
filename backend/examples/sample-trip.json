@@ -1,0 +1,15 @@
+{
+  "current_location": { "label": "Chicago, IL", "lat": 41.8781, "lng": -87.6298 },
+  "pickup_location": { "label": "Dallas, TX", "lat": 32.7767, "lng": -96.797 },
+  "dropoff_location": {
+    "label": "Los Angeles, CA",
+    "lat": 34.0522,
+    "lng": -118.2437
+  },
+  "cycle_used_hours": 34,
+  "start_time": "2026-10-03T08:00:00-05:00",
+  "carrier": { "name": "Demo Freight LLC", "address": "Chicago, IL" },
+  "vehicle": "Truck 101 / Trailer 201",
+  "shipping_doc": "DEMO-001 / General freight",
+  "driver_name": "Demo Driver"
+}

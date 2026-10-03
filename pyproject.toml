@@ -8,3 +8,8 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["backend/trips/tests"]
+pythonpath = ["backend"]
+addopts = "-ra --strict-config --strict-markers"

@@ -2,6 +2,13 @@
 .venv/
 .tools/
 .cache/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.hypothesis/
+.tox/
+.nox/
 node_modules/
 dist/
 build/

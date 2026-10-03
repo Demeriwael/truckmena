@@ -1,7 +1,7 @@
 import type { DutyStatus, TripEvent } from "./contracts";
 
 export type EventSelection = { id: string; source: "map" | "itinerary" };
-export type ResultTab = "summary" | "itinerary";
+export type ResultTab = "summary" | "itinerary" | "logs";
 export type ItineraryEntry = {
   key: string;
   event: TripEvent;

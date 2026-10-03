@@ -57,7 +57,7 @@
 }
 body {
   margin: 0;
-  min-width: 320px;
+  min-width: min(320px, 100%);
   background: var(--background);
   color: var(--foreground);
 }
@@ -1956,6 +1956,266 @@ h2 {
   }
   .map-skeleton {
     height: 490px;
+  }
+}
+.log-sheets {
+  padding: 26px;
+}
+.log-toolbar,
+.log-page-controls,
+.log-pager,
+.log-download-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.log-toolbar,
+.log-page-controls {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.log-toolbar h2 {
+  margin: 7px 0 6px;
+  font-size: 19px;
+  letter-spacing: -0.5px;
+}
+.log-toolbar p,
+.log-announcement,
+.log-footnote {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.log-toolbar p {
+  margin: 0;
+}
+.log-page-controls {
+  margin-top: 24px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.log-date-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 130px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.log-date-picker select {
+  background: var(--card);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 13px;
+  min-height: 32px;
+}
+.log-date-picker select:focus-visible,
+.log-paper-viewport:focus-visible,
+.log-text-details summary:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+.log-announcement {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 42px;
+}
+.log-announcement .spinner {
+  animation: spin 1s linear infinite;
+}
+.log-export-error {
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--danger);
+  background: var(--danger-bg);
+  font-size: 13px;
+}
+.log-paper-viewport {
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  background: #e9edf2;
+  scrollbar-gutter: stable;
+}
+.dark .log-paper-viewport {
+  background: #202c3c;
+}
+.log-paper {
+  width: 100%;
+  background: #fff;
+  box-shadow: 0 2px 10px #16243717;
+}
+.log-paper-viewport.is-enlarged {
+  max-height: 760px;
+}
+.log-paper-viewport.is-enlarged .log-paper {
+  width: 1200px;
+}
+.log-text-details {
+  margin-top: 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.log-text-details summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.log-details-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 16px;
+}
+.log-duty-totals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.log-metadata {
+  margin: 16px 0;
+}
+.log-metadata div {
+  margin: 8px 0;
+}
+.log-metadata dt {
+  font-weight: 600;
+}
+.log-metadata dd {
+  margin: 2px 0 0;
+  color: var(--muted-foreground);
+}
+.log-duty-totals dt {
+  font-size: 10px;
+  font-weight: 600;
+}
+.log-duty-totals dd {
+  margin: 3px 0 0;
+}
+.log-duty-totals dd span {
+  color: var(--muted-foreground);
+}
+.log-text-remarks {
+  list-style: none;
+  padding: 0;
+}
+.log-text-remarks li {
+  display: flex;
+  gap: 14px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.log-text-remarks time {
+  font-variant-numeric: tabular-nums;
+}
+.log-text-remarks p {
+  margin: 2px 0 0;
+  color: var(--muted-foreground);
+}
+.log-footnote {
+  margin: 16px 0 0;
+}
+.log-loading {
+  padding: 26px;
+}
+@media (max-width: 767px) {
+  .log-sheets {
+    padding: 20px 16px;
+  }
+  .log-toolbar {
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .log-toolbar h2 {
+    font-size: 18px;
+  }
+  .log-page-controls {
+    gap: 16px;
+  }
+  .log-pager,
+  .log-download-buttons {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .log-paper-viewport {
+    padding: 8px;
+  }
+  .log-download-buttons {
+    gap: 6px;
+  }
+  .log-download-buttons .button-small {
+    padding-left: 8px;
+    padding-right: 8px;
+    gap: 6px;
+  }
+  .log-footnote {
+    font-size: 11px;
+  }
+  .results-day-count {
+    display: none;
+  }
+  .results-tabs > button {
+    flex: 1;
+    justify-content: center;
+    gap: 5px;
+    padding-right: 9px;
+    padding-left: 9px;
+  }
+}
+@media print {
+  @page {
+    size: landscape;
+    margin: 10mm;
+  }
+  body:has(.log-sheets) .app-header,
+  body:has(.log-sheets) .workspace-heading,
+  body:has(.log-sheets) .planner-card,
+  body:has(.log-sheets) .map-view,
+  body:has(.log-sheets) .plan-ready,
+  body:has(.log-sheets) .provider-warning,
+  body:has(.log-sheets) .workspace-footer,
+  body:has(.log-sheets) .results-tabs,
+  body:has(.log-sheets) .results-stale,
+  .log-toolbar,
+  .log-page-controls,
+  .log-announcement,
+  .log-text-details,
+  .log-footnote {
+    display: none !important;
+  }
+  body:has(.log-sheets),
+  body:has(.log-sheets) .workspace,
+  body:has(.log-sheets) .planner-layout,
+  body:has(.log-sheets) .trip-results,
+  .log-sheets {
+    display: block;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: white;
+    box-shadow: none;
+  }
+  .log-paper-viewport,
+  .log-paper-viewport.is-enlarged {
+    overflow: visible;
+    max-height: none;
+    padding: 0;
+    border: 0;
+    background: white;
+  }
+  .log-paper,
+  .log-paper-viewport.is-enlarged .log-paper {
+    width: 100%;
+    box-shadow: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {

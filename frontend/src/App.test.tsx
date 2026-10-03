@@ -109,6 +109,14 @@ describe("trip planning flow", () => {
       await user.click(screen.getByRole("button", { name: /Show Delivery event/ }));
       expect(screen.getByTestId("map-selection")).toHaveTextContent("event-0004");
       expect(scroll).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+      await user.click(screen.getByRole("tab", { name: "Log Sheets" }));
+      expect(
+        await screen.findByRole(
+          "img",
+          { name: /Driver's Daily Log.*Day 1 of 1/ },
+          { timeout: 5000 },
+        ),
+      ).toBeInTheDocument();
       await user.clear(
         screen.getByRole("spinbutton", { name: "Cycle hours already used" }),
       );
@@ -119,6 +127,7 @@ describe("trip planning flow", () => {
       expect(
         screen.getByText("Trip details changed. Plan again to update these results."),
       ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Download PDF/ })).toBeDisabled();
       await user.click(screen.getByRole("button", { name: "Plan trip" }));
       await waitFor(() =>
         expect(screen.getByRole("tab", { name: "Summary" })).toHaveAttribute(
@@ -127,6 +136,8 @@ describe("trip planning flow", () => {
         ),
       );
       expect(screen.getByTestId("map-selection")).toBeEmptyDOMElement();
+      await user.click(screen.getByRole("tab", { name: "Log Sheets" }));
+      expect(await screen.findByRole("button", { name: /Download PDF/ })).toBeEnabled();
       await user.click(screen.getByRole("tab", { name: "Itinerary" }));
       expect(
         within(screen.getByRole("tabpanel")).getByRole("button", {
@@ -136,5 +147,5 @@ describe("trip planning flow", () => {
     } finally {
       HTMLElement.prototype.scrollIntoView = originalScroll;
     }
-  });
+  }, 10000);
 });

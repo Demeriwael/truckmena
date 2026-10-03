@@ -1,12 +1,16 @@
-import { useRef, type KeyboardEvent } from "react";
-import { AlertTriangle, ListOrdered, PieChart } from "lucide-react";
+import { lazy, Suspense, useRef, type KeyboardEvent } from "react";
+import { AlertTriangle, FileText, ListOrdered, PieChart } from "lucide-react";
 import { LazyMotion, domAnimation, m } from "framer-motion";
 import type { TripPlan } from "@/lib/contracts";
 import type { EventSelection, ResultTab } from "@/lib/plan-view";
 import { TripSummary } from "./trip-summary";
 import { TripItinerary } from "./trip-itinerary";
 
-const tabs = ["summary", "itinerary"] as const;
+const tabs = ["summary", "itinerary", "logs"] as const;
+const TripLogSheets = lazy(() =>
+  import("./trip-log-sheets").then((module) => ({ default: module.TripLogSheets })),
+);
+const tabNames = { summary: "Summary", itinerary: "Itinerary", logs: "Log Sheets" };
 
 export function ResultsSkeleton() {
   return (
@@ -95,10 +99,12 @@ export function TripResults({
             >
               {name === "summary" ? (
                 <PieChart size={16} aria-hidden="true" />
-              ) : (
+              ) : name === "itinerary" ? (
                 <ListOrdered size={16} aria-hidden="true" />
+              ) : (
+                <FileText size={16} aria-hidden="true" />
               )}
-              {name === "summary" ? "Summary" : "Itinerary"}
+              {tabNames[name]}
             </button>
           ))}
           <span className="results-day-count">
@@ -137,6 +143,25 @@ export function TripResults({
             onSelect={onSelect}
             onHover={onHover}
           />
+        </div>
+        <div
+          role="tabpanel"
+          id="panel-logs"
+          aria-labelledby="tab-logs"
+          tabIndex={0}
+          hidden={tab !== "logs"}
+        >
+          {tab === "logs" && (
+            <Suspense
+              fallback={
+                <p className="log-loading" role="status">
+                  Preparing your log sheets…
+                </p>
+              }
+            >
+              <TripLogSheets plan={plan} disabled={dirty || pending} />
+            </Suspense>
+          )}
         </div>
       </m.section>
     </LazyMotion>

@@ -93,6 +93,7 @@ describe("results navigation", () => {
     const user = userEvent.setup();
     const summary = screen.getByRole("tab", { name: "Summary" });
     const itinerary = screen.getByRole("tab", { name: "Itinerary" });
+    const logs = screen.getByRole("tab", { name: "Log Sheets" });
     summary.focus();
     await user.keyboard("{ArrowRight}");
     expect(itinerary).toHaveFocus();
@@ -100,13 +101,16 @@ describe("results navigation", () => {
     expect(summary).toHaveAttribute("tabindex", "-1");
     expect(screen.getByRole("tabpanel")).toHaveAccessibleName("Itinerary");
     await user.keyboard("{ArrowRight}");
+    expect(logs).toHaveFocus();
+    expect(screen.getByRole("tabpanel")).toHaveAccessibleName("Log Sheets");
+    await user.keyboard("{ArrowRight}");
     expect(summary).toHaveFocus();
     await user.keyboard("{ArrowLeft}");
-    expect(itinerary).toHaveFocus();
+    expect(logs).toHaveFocus();
     await user.keyboard("{Home}");
     expect(summary).toHaveFocus();
     await user.keyboard("{End}");
-    expect(itinerary).toHaveFocus();
+    expect(logs).toHaveFocus();
     await user.keyboard("{Tab}");
     expect(screen.getByRole("tabpanel")).toHaveFocus();
   });

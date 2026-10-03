@@ -3,9 +3,11 @@
 A trip-planning assessment for property-carrying drivers: route a trip, schedule
 duty changes, and generate a Driver's Daily Log for each calendar day.
 
-**Current stage: Phase 3 — backend with daily logs.** The stateless Django API
-returns routes, HOS schedules, summaries, positioned events, and one completed
-daily log per occupied calendar date. The frontend starts in Phase 4.
+**Current stage: Phase 4 — frontend shell, trip form, and map.** The React app
+submits validated trip details to the stateless Django API and displays the route
+and required stops. The API returns HOS schedules, summaries, positioned events,
+and complete daily logs. The summary/itinerary views follow in Phase 5 and the
+drawn SVG log sheets and exports in Phase 6.
 
 ## Stack and architecture
 
@@ -42,7 +44,10 @@ backend/
   examples/             Sample trip request for local smoke testing
   requirements.txt      Pinned runtime dependencies
   requirements-dev.txt  Runtime dependencies plus pytest and Hypothesis
-frontend/               Frontend environment template; application follows in Phase 4
+frontend/src/components/ Trip form, address combobox, route map, and local UI primitives
+frontend/src/lib/        Validated API contracts, client, formatting, and form mapping
+frontend/src/hooks/      Debounced queries and persisted theme preference
+frontend/src/test/       Test setup and a response fixture from the Django endpoint
 .github/workflows/      CI for file hygiene and application quality
 .pre-commit-config.yaml Staged secret scanning, linters, and format checks
 requirements-dev.txt    Pinned Python repository tools
@@ -51,8 +56,8 @@ package.json            Pinned Node repository tools
 
 ## Repository tooling setup
 
-Install Python 3.12 and Node.js 22 LTS or newer. Run these commands from the
-repository root.
+Install Python 3.12 and Node.js 22.13 or newer (the latest Node 22 LTS is
+recommended). Run these commands from the repository root.
 
 ### Windows PowerShell
 
@@ -112,7 +117,84 @@ and build activate when `frontend/package.json` is introduced. Python and
 frontend source hooks skip when there are no matching source files in Phase 0.
 CI scans repository history for secrets; the commit hook scans staged changes.
 The backend job is active from Phase 1. Frontend checks remain inactive until the
-frontend is introduced.
+frontend is introduced. Both application jobs are now active.
+
+## Run the frontend
+
+Keep Django running at `http://127.0.0.1:8000` using the backend instructions
+below. In a **second PowerShell window**, change to the repository root and run:
+
+```powershell
+# Open the project directory.
+Set-Location -LiteralPath 'C:\Users\walde\OneDrive\Documents\assesment_truck'
+
+# Install the frontend's locked dependencies.
+npm.cmd ci --prefix frontend
+
+# Start Vite; keep this terminal open.
+npm.cmd --prefix frontend run dev
+```
+
+On macOS/Linux, change to your clone's root with `cd /path/to/truckmena` and
+replace `npm.cmd` with `npm`. Open `http://localhost:5173`, click **Use sample
+trip**, then **Plan trip**. Vite forwards `/api` to Django; no frontend environment
+file or CORS change is required for this local setup. The strict port setting
+prevents Vite silently moving to an origin that the backend does not allow.
+Stop either development server with **Ctrl+C** in its terminal.
+
+For a separately hosted API, put its origin (for example
+`https://your-backend.example`) after `VITE_API_BASE_URL=` in the ignored
+`frontend/.env`. Restart Vite after changing that value. This is public build
+configuration: **never put an ORS key in a `VITE_` variable**. Production builds
+require the deployed API origin and matching backend CORS configuration.
+
+Frontend checks, from the repository root:
+
+```powershell
+# Check source lint and TypeScript.
+npm.cmd --prefix frontend run lint
+npm.cmd --prefix frontend run typecheck
+
+# Run network-isolated interaction and API contract tests.
+npm.cmd --prefix frontend run test -- --run
+
+# Produce the production build in the ignored frontend/dist directory.
+npm.cmd --prefix frontend run build
+
+# Check frontend dependency advisories.
+npm.cmd audit --prefix frontend
+```
+
+The address combobox waits 350ms and requires three characters, caches results
+for five minutes, and supports arrows, Home/End, Enter, Escape, and Tab. Editing a
+selected address removes its old coordinates. Complete addresses may still be
+submitted if autocomplete fails. The sample includes coordinates and lets the
+API infer departure from Chicago's current local offset.
+
+An optional departure date/time uses the browser's timezone offset at that date;
+leaving it blank lets the API infer the start location's offset. The map popups
+always display the returned trip offset rather than converting to the viewer's
+zone. Request cancellation, timeouts, field validation, and fallback warnings
+are explicit. HOS calculation remains server-side.
+
+The map lazy-loads Leaflet and fits the entire route. Every required stop has a
+keyboard-focusable marker and a popup; the expandable stop list provides another
+way to open those popups. Editing a displayed trip marks the map as stale until
+planning succeeds again. Dark mode persists locally; light mode is the default.
+Fonts are self-hosted. Only visible OpenStreetMap tiles are requested, with
+visible attribution and normal browser caching; see the
+[OSM tile policy](https://operations.osmfoundation.org/policies/tiles/).
+
+The local Button and Input primitives adapt the React 18
+[shadcn/ui](https://ui.shadcn.com/) pattern using Radix Slot, variant utilities,
+and shared theme tokens. Their MIT notice is in `frontend/THIRD_PARTY_NOTICES.md`.
+`components.json` and the `@` alias support adding further UI components.
+
+Frontend tests cover cycle boundaries, sample and request mapping, midnight-safe
+offset display, nested API errors, cancellation/timeouts, response validation,
+debouncing, keyboard selection, stale-coordinate removal, and form submission.
+The JSON contract fixture was generated through the real Django endpoint using
+mocked provider responses. Automated tests never call external providers.
 
 ## HOS engine setup and verification
 
@@ -398,7 +480,7 @@ To deliberately enable this fallback for a small assessment/demo deployment:
 
 Keep Nominatim disabled if these conditions cannot be met. Deployment scaling
 and provider quotas also need shared coordination beyond the assessment's
-local-memory cache. Frontend autocomplete debounce (350 ms) follows in Phase 4.
+local-memory cache. Frontend autocomplete now debounces searches by 350 ms.
 
 The automated suite makes **no external requests** and needs **no API key**.
 It exercises real provider parsing, cached/fallback paths, policy gates, safe

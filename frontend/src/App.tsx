@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -17,6 +17,8 @@ import { useTheme } from "@/hooks/use-theme";
 import { TripForm } from "@/components/trip-form";
 import { PlanningProgress } from "@/components/planning-progress";
 import { Button } from "@/components/ui/button";
+import { ResultsSkeleton, TripResults } from "@/components/trip-results";
+import type { EventSelection, ResultTab } from "@/lib/plan-view";
 
 const RouteMap = lazy(() =>
   import("@/components/route-map").then((module) => ({ default: module.RouteMap })),
@@ -26,6 +28,14 @@ export default function App() {
   const { dark, toggle } = useTheme();
   const [plan, setPlan] = useState<TripPlan | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [tab, setTab] = useState<ResultTab>("summary");
+  const [selection, setSelection] = useState<EventSelection | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const mapView = useRef<HTMLDivElement>(null);
+  const selectFromMap = useCallback((id: string) => {
+    setSelection({ id, source: "map" });
+    setTab("itinerary");
+  }, []);
   const controller = useRef<AbortController | null>(null);
   const results = useRef<HTMLDivElement | null>(null);
   const showMobileResults = () => {
@@ -48,6 +58,9 @@ export default function App() {
     onSuccess: (result) => {
       setPlan(result);
       setDirty(false);
+      setTab("summary");
+      setSelection(null);
+      setHoveredId(null);
       showMobileResults();
     },
     onError: showMobileResults,
@@ -183,16 +196,49 @@ export default function App() {
                   <p>{warning}</p>
                 </div>
               ))}
-              <Suspense
-                fallback={
-                  <div className="map-skeleton" role="status">
-                    <Map size={28} />
-                    <span>Preparing your map…</span>
-                  </div>
-                }
-              >
-                <RouteMap plan={plan} dirty={dirty} pending={mutation.isPending} />
-              </Suspense>
+              <div ref={mapView} className="map-view">
+                <Suspense
+                  fallback={
+                    <div className="map-skeleton" role="status">
+                      <Map size={28} />
+                      <span>Preparing your map…</span>
+                    </div>
+                  }
+                >
+                  <RouteMap
+                    plan={plan}
+                    dirty={dirty}
+                    pending={mutation.isPending}
+                    selection={selection}
+                    hoveredId={hoveredId}
+                    onHover={setHoveredId}
+                    onSelect={selectFromMap}
+                  />
+                </Suspense>
+              </div>
+              {!plan && mutation.isPending && <ResultsSkeleton />}
+              {plan && (
+                <TripResults
+                  plan={plan}
+                  tab={tab}
+                  onTabChange={setTab}
+                  selection={selection}
+                  hoveredId={hoveredId}
+                  onHover={setHoveredId}
+                  onSelect={(id) => {
+                    setSelection({ id, source: "itinerary" });
+                    mapView.current?.scrollIntoView({
+                      behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
+                        .matches
+                        ? "instant"
+                        : "smooth",
+                      block: "start",
+                    });
+                  }}
+                  dirty={dirty}
+                  pending={mutation.isPending}
+                />
+              )}
             </div>
           </div>
           <footer className="workspace-footer">

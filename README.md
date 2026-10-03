@@ -3,11 +3,10 @@
 A trip-planning assessment for property-carrying drivers: route a trip, schedule
 duty changes, and generate a Driver's Daily Log for each calendar day.
 
-**Current stage: Phase 4 — frontend shell, trip form, and map.** The React app
-submits validated trip details to the stateless Django API and displays the route
-and required stops. The API returns HOS schedules, summaries, positioned events,
-and complete daily logs. The summary/itinerary views follow in Phase 5 and the
-drawn SVG log sheets and exports in Phase 6.
+**Current stage: Phase 5 — trip summary and synchronized itinerary.** The React
+app submits validated trip details to the stateless Django API and displays the
+route, required stops, summary, and chronological itinerary. The API returns
+complete daily logs; drawn SVG log sheets and exports follow in Phase 6.
 
 ## Stack and architecture
 
@@ -44,8 +43,8 @@ backend/
   examples/             Sample trip request for local smoke testing
   requirements.txt      Pinned runtime dependencies
   requirements-dev.txt  Runtime dependencies plus pytest and Hypothesis
-frontend/src/components/ Trip form, address combobox, route map, and local UI primitives
-frontend/src/lib/        Validated API contracts, client, formatting, and form mapping
+frontend/src/components/ Trip form, route map, summary, itinerary, and local UI primitives
+frontend/src/lib/        API contracts, client, form mapping, and fixed-offset calendar views
 frontend/src/hooks/      Debounced queries and persisted theme preference
 frontend/src/test/       Test setup and a response fixture from the Django endpoint
 .github/workflows/      CI for file hygiene and application quality
@@ -142,6 +141,37 @@ file or CORS change is required for this local setup. The strict port setting
 prevents Vite silently moving to an origin that the backend does not allow.
 Stop either development server with **Ctrl+C** in its terminal.
 
+After planning, **Summary** shows provider mileage, scheduled driving/trip time,
+daily-log count, and stop counts from the API. The colored trip bar covers only
+the scheduled events, excluding OFF padding added to make daily log sheets total
+24 hours. **Delivery complete** includes the final hour of unloading; the delivery
+marker shows arrival at the start of unloading.
+
+The cycle gauge uses the final log's exact `cycle_used_min` and the API summary's
+remaining cycle time. It reflects any completed restart. Allowed non-driving
+work may finish above 70 hours: the gauge fills at 70 while its text shows actual
+use and zero availability. It does not infer historical rolling-hour dropoff.
+
+**Itinerary** groups every event by calendar day in the API's fixed trip offset,
+including a portion on each day of an overnight event. An exact midnight finish
+does not add an empty day. Continued rows show their portion's duration and retain
+the original event ID: selecting one opens the **full event** at its original API
+start coordinate and time. This is explicit on those rows; no new driving position
+is invented for a midnight continuation.
+
+Selecting an itinerary event brings its map popup into view. Map selection opens
+the itinerary tab and scrolls only its internal list to the corresponding event.
+Hovering or focusing a row highlights the map marker; map hover highlights the
+row. Driving events get a temporary start marker while selected or hovered.
+Map markers support Enter and Space for the same selection as a pointer click.
+Tabs support Left/Right arrows, Home, End, and Tab. A successful new plan clears
+selection and returns to Summary; edited or updating results are labeled stale.
+
+Phase 5 visual verification: plan the sample trip, check both tabs, select a rest
+that continues after midnight, then select Pickup on the map. Repeat at a mobile
+viewport and in dark mode. Local review screenshots are saved in the ignored
+`.tools/phase5-preview` directory; attach these to the phase PR if desired.
+
 For a separately hosted API, put its origin (for example
 `https://your-backend.example`) after `VITE_API_BASE_URL=` in the ignored
 `frontend/.env`. Restart Vite after changing that value. This is public build
@@ -193,6 +223,9 @@ and shared theme tokens. Their MIT notice is in `frontend/THIRD_PARTY_NOTICES.md
 Frontend tests cover cycle boundaries, sample and request mapping, midnight-safe
 offset display, nested API errors, cancellation/timeouts, response validation,
 debouncing, keyboard selection, stale-coordinate removal, and form submission.
+Summary/itinerary tests cover cycle use above 70 after permitted work, restart
+recaps, OFF-padding exclusion, midnight/year/leap-day boundaries, fixed offsets,
+tab keyboard navigation, and selection/hover/popup reset across both views.
 The JSON contract fixture was generated through the real Django endpoint using
 mocked provider responses. Automated tests never call external providers.
 

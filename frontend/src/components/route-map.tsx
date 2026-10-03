@@ -1,6 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
-import { divIcon, latLngBounds, type Marker as LeafletMarker } from "leaflet";
+import {
+  divIcon,
+  latLngBounds,
+  type Marker as LeafletMarker,
+  type LeafletKeyboardEvent,
+} from "leaflet";
 import {
   MapContainer,
   Marker,
@@ -10,36 +15,11 @@ import {
   useMap,
 } from "react-leaflet";
 import { Crosshair, Flag, MapPinned, Route, Truck } from "lucide-react";
-import type { EventType, TripEvent, TripPlan } from "@/lib/contracts";
+import type { TripEvent, TripPlan } from "@/lib/contracts";
 import { durationLabel, eventTime } from "@/lib/format";
+import { eventLabels, statusLabels, eventSymbols } from "@/lib/event-presentation";
+import type { EventSelection } from "@/lib/plan-view";
 import { Button } from "./ui/button";
-
-const eventLabels: Record<EventType, string> = {
-  start: "Start",
-  driving: "Driving",
-  pickup: "Pickup",
-  dropoff: "Delivery",
-  fuel: "Fuel stop",
-  break: "30-minute break",
-  rest: "10-hour rest",
-  restart: "34-hour restart",
-};
-const statusLabels = {
-  OFF: "Off Duty",
-  SLEEPER: "Sleeper Berth",
-  DRIVING: "Driving",
-  ON_DUTY: "On Duty",
-};
-const symbols: Record<EventType, string> = {
-  start: "S",
-  driving: "→",
-  pickup: "P",
-  dropoff: "D",
-  fuel: "F",
-  break: "B",
-  rest: "R",
-  restart: "34",
-};
 
 function MapViewport({ plan }: { plan: TripPlan | null }) {
   const map = useMap();
@@ -93,32 +73,70 @@ function EventMarker({
   offset,
   selection,
   onSelect,
+  hoveredId,
+  onHover,
 }: {
   event: TripEvent;
   offset: number;
-  selection: { id: string } | null;
+  selection: EventSelection | null;
   onSelect: (id: string) => void;
+  hoveredId: string | null;
+  onHover: (id: string | null) => void;
 }) {
   const ref = useRef<LeafletMarker>(null);
-  const icon = divIcon({
-    className: "event-marker",
-    iconSize: [32, 32],
-    iconAnchor: [16 - offset, 16],
-    popupAnchor: [offset, -20],
-    // All HTML here is static; addresses and provider notes render as React text.
-    html: `<span class="marker-badge marker-${event.type}">${symbols[event.type]}</span>`,
-  });
+  const map = useMap();
+  const position = useMemo<[number, number]>(
+    () => [event.lat, event.lng],
+    [event.lat, event.lng],
+  );
+  const handlers = useMemo(
+    () => ({
+      click: () => onSelect(event.id),
+      keydown: (input: LeafletKeyboardEvent) => {
+        if (input.originalEvent.key === "Enter" || input.originalEvent.key === " ") {
+          input.originalEvent.preventDefault();
+          onSelect(event.id);
+        }
+      },
+      mouseover: () => onHover(event.id),
+      mouseout: () => onHover(null),
+    }),
+    [event.id, onSelect, onHover],
+  );
+  const icon = useMemo(
+    () =>
+      divIcon({
+        className: "event-marker",
+        iconSize: [32, 32],
+        iconAnchor: [16 - offset, 16],
+        popupAnchor: [offset, -20],
+        // All HTML here is static; addresses and provider notes render as React text.
+        html: `<span class="marker-badge marker-${event.type}">${eventSymbols[event.type]}</span>`,
+      }),
+    [event.type, offset],
+  );
   useEffect(() => {
-    if (selection?.id === event.id) ref.current?.openPopup();
-  }, [selection, event.id]);
+    // Keep the icon DOM stable during pointer input. Replacing it on mouseover
+    // can remove the pressed element before mouseup and swallow marker clicks.
+    const element = ref.current?.getElement();
+    element?.classList.toggle("marker-selected", selection?.id === event.id);
+    element?.classList.toggle("marker-hovered", hoveredId === event.id);
+  }, [event.id, hoveredId, selection, icon]);
+  useEffect(() => {
+    if (selection?.id === event.id) {
+      if (selection.source === "itinerary")
+        map.panTo([event.lat, event.lng], { animate: false });
+      ref.current?.openPopup();
+    } else ref.current?.closePopup();
+  }, [selection, event.id, event.lat, event.lng, map]);
   return (
     <Marker
       ref={ref}
-      position={[event.lat, event.lng]}
+      position={position}
       icon={icon}
       title={`${eventLabels[event.type]}: ${event.place}`}
       alt={`${eventLabels[event.type]}: ${event.place}`}
-      eventHandlers={{ click: () => onSelect(event.id) }}
+      eventHandlers={handlers}
     >
       <Popup>
         <div className="event-popup">
@@ -157,16 +175,30 @@ export function RouteMap({
   plan,
   dirty,
   pending,
+  selection,
+  hoveredId,
+  onSelect,
+  onHover,
 }: {
   plan: TripPlan | null;
   dirty: boolean;
   pending: boolean;
+  selection: EventSelection | null;
+  hoveredId: string | null;
+  onSelect: (id: string) => void;
+  onHover: (id: string | null) => void;
 }) {
   const [tileError, setTileError] = useState(false);
   const [tilesLoading, setTilesLoading] = useState(true);
-  const [selected, setSelected] = useState<{ id: string } | null>(null);
-  const select = (id: string) => setSelected({ id });
   const stops = plan?.events.filter((event) => event.type !== "driving") ?? [];
+  // Driving rows use the API's start coordinate. No fabricated positions for
+  // midnight continuations; their rows and popups refer to the full event.
+  const activeDriving =
+    plan?.events.filter(
+      (event) =>
+        event.type === "driving" &&
+        (event.id === hoveredId || event.id === selection?.id),
+    ) ?? [];
   const seen = new Map<string, number>();
   const markerOffsets = stops.map((event) => {
     const key = `${event.lat.toFixed(6)},${event.lng.toFixed(6)}`;
@@ -175,7 +207,11 @@ export function RouteMap({
     return index === 0 ? 0 : Math.ceil(index / 2) * 26 * (index % 2 ? 1 : -1);
   });
   return (
-    <section className="map-card" aria-labelledby="map-title" aria-busy={pending}>
+    <section
+      className={`map-card ${plan ? "map-with-results" : ""}`}
+      aria-labelledby="map-title"
+      aria-busy={pending}
+    >
       <div className="map-heading">
         <div>
           <span className="eyebrow">THE ROAD AHEAD</span>
@@ -223,8 +259,21 @@ export function RouteMap({
                   key={event.id}
                   event={event}
                   offset={markerOffsets[index] ?? 0}
-                  selection={selected}
-                  onSelect={select}
+                  selection={selection}
+                  onSelect={onSelect}
+                  hoveredId={hoveredId}
+                  onHover={onHover}
+                />
+              ))}
+              {activeDriving.map((event, index) => (
+                <EventMarker
+                  key={event.id}
+                  event={event}
+                  offset={-26 * (index + 1)}
+                  selection={selection}
+                  onSelect={onSelect}
+                  hoveredId={hoveredId}
+                  onHover={onHover}
                 />
               ))}
             </>
@@ -320,9 +369,15 @@ export function RouteMap({
           </summary>
           <div>
             {stops.map((event) => (
-              <button type="button" key={event.id} onClick={() => select(event.id)}>
+              <button
+                type="button"
+                key={event.id}
+                onClick={() => onSelect(event.id)}
+                onMouseEnter={() => onHover(event.id)}
+                onMouseLeave={() => onHover(null)}
+              >
                 <span className={`stop-symbol marker-${event.type}`}>
-                  {symbols[event.type]}
+                  {eventSymbols[event.type]}
                 </span>
                 <span>
                   <strong>{eventLabels[event.type]}</strong>

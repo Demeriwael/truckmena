@@ -1,16 +1,43 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import fixture from "./test/fixtures/trip.json";
+import type { EventSelection } from "./lib/plan-view";
 
-vi.mock("@/components/route-map", () => ({ RouteMap: () => <div>Map preview</div> }));
+vi.mock("@/components/route-map", () => ({
+  RouteMap: ({
+    selection,
+    onSelect,
+    onHover,
+  }: {
+    selection: EventSelection | null;
+    onSelect: (id: string) => void;
+    onHover: (id: string | null) => void;
+  }) => (
+    <div>
+      Map preview<span data-testid="map-selection">{selection?.id}</span>
+      <button
+        type="button"
+        onClick={() => onSelect("event-0002")}
+        onMouseEnter={() => onHover("event-0002")}
+        onMouseLeave={() => onHover(null)}
+      >
+        Pickup map marker
+      </button>
+    </div>
+  ),
+}));
 afterEach(() => vi.unstubAllGlobals());
 
 describe("trip planning flow", () => {
   it("retries a failed request from the banner using current form values", async () => {
-    vi.stubGlobal("matchMedia", () => ({ matches: false }));
+    vi.stubGlobal("matchMedia", () => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(new Response("{}", { status: 502 }))
@@ -35,5 +62,79 @@ describe("trip planning flow", () => {
       expect(screen.getByText("Your route is ready")).toBeInTheDocument(),
     );
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+  it("links map and itinerary selections and resets them when a new plan arrives", async () => {
+    vi.stubGlobal("matchMedia", () => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementation(() =>
+          Promise.resolve(new Response(JSON.stringify(fixture))),
+        ),
+    );
+    const scroll = vi.fn();
+    const originalScroll = HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = scroll;
+    try {
+      const client = new QueryClient({
+        defaultOptions: { queries: { retry: false, gcTime: 0 } },
+      });
+      render(
+        <QueryClientProvider client={client}>
+          <App />
+        </QueryClientProvider>,
+      );
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: "Use sample trip" }));
+      await user.click(screen.getByRole("button", { name: "Plan trip" }));
+      await screen.findByText("Your route is ready");
+      expect(screen.getByRole("tab", { name: "Summary" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+      await user.click(screen.getByRole("button", { name: "Pickup map marker" }));
+      expect(screen.getByRole("tab", { name: "Itinerary" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+      const pickup = screen.getByRole("button", { name: /Show Pickup event/ });
+      expect(pickup).toHaveAttribute("aria-pressed", "true");
+      fireEvent.mouseEnter(screen.getByRole("button", { name: "Pickup map marker" }));
+      expect(pickup).toHaveClass("is-hovered");
+      await user.click(screen.getByRole("button", { name: /Show Delivery event/ }));
+      expect(screen.getByTestId("map-selection")).toHaveTextContent("event-0004");
+      expect(scroll).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+      await user.clear(
+        screen.getByRole("spinbutton", { name: "Cycle hours already used" }),
+      );
+      await user.type(
+        screen.getByRole("spinbutton", { name: "Cycle hours already used" }),
+        "10",
+      );
+      expect(
+        screen.getByText("Trip details changed. Plan again to update these results."),
+      ).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Plan trip" }));
+      await waitFor(() =>
+        expect(screen.getByRole("tab", { name: "Summary" })).toHaveAttribute(
+          "aria-selected",
+          "true",
+        ),
+      );
+      expect(screen.getByTestId("map-selection")).toBeEmptyDOMElement();
+      await user.click(screen.getByRole("tab", { name: "Itinerary" }));
+      expect(
+        within(screen.getByRole("tabpanel")).getByRole("button", {
+          name: /Show Pickup event/,
+        }),
+      ).toHaveAttribute("aria-pressed", "false");
+    } finally {
+      HTMLElement.prototype.scrollIntoView = originalScroll;
+    }
   });
 });

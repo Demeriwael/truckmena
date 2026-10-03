@@ -10,6 +10,7 @@ target-version = "py312"
 select = ["E", "F", "I", "B", "UP", "SIM"]
 
 [tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.test_settings"
 testpaths = ["backend/trips/tests"]
 pythonpath = ["backend"]
 addopts = "-ra --strict-config --strict-markers"

@@ -25,6 +25,29 @@ from trips.services.routing import (
 from trips.tests.conftest import ResponseStub
 
 
+def test_ors_instruction_option_retains_both_authoritative_leg_distances(
+    http_stub, ors_payload, monkeypatch
+):
+    original_request = http_stub.request
+
+    def provider_response(method, url, **kwargs):
+        payload = ors_payload((110.125, 55.375))
+        # Match ORS RouteResultBuilder: instructions=false removes segments.
+        if not kwargs.get("json", {}).get("instructions", True):
+            payload["features"][0]["properties"].pop("segments")
+        http_stub.responses.append(payload)
+        return original_request(method, url, **kwargs)
+
+    monkeypatch.setattr(requests, "request", provider_response)
+    route = get_route(locations())
+    assert route.provider == "ors"
+    assert [leg.miles for leg in route.legs] == [
+        Fraction("110.125"),
+        Fraction("55.375"),
+    ]
+    assert len(http_stub.calls) == 1
+
+
 def locations():
     return (
         Location("Current", 0, 0),

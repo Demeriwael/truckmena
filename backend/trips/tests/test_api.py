@@ -53,7 +53,22 @@ def test_plan_contract_mileage_offsets_summary_and_pickup_marker(
     assert (pickup["lat"], pickup["lng"], pickup["mile_marker"]) == (1, 1, 110)
     assert pickup["start"] == "2026-10-03T10:00:00-05:00"
     assert pickup["end"] == "2026-10-03T11:00:00-05:00"
-    assert data["logs"] == [] and data["log_generation_available"] is False
+    assert data["log_generation_available"] is True
+    (sheet,) = data["logs"]
+    assert sheet["date"] == "10/03/2026" and sheet["iso_date"] == "2026-10-03"
+    assert sheet["total_miles"] == 165
+    assert sheet["from"] == "Current" and sheet["to"] == "Dropoff"
+    assert sheet["totals_min"] == {
+        "off": 1140,
+        "sleeper": 0,
+        "driving": 180,
+        "on_duty": 120,
+    }
+    assert sheet["totals"] == {"off": 19, "sleeper": 0, "driving": 3, "on_duty": 2}
+    assert sheet["recap"]["a"] == 5 and sheet["recap"]["b"] == 65
+    assert sheet["driver_name"] == "Demo Driver"
+    assert sheet["home_terminal_address"] == "Chicago, IL"
+    assert all(segment["event_id"] != "event-start" for segment in sheet["segments"])
     assert len(http_stub.calls) == 1
     assert "provider-test-credential" not in response.content.decode()
 
@@ -101,6 +116,15 @@ def test_long_trip_preserves_contiguous_intervals_and_fuel_distance(
         assert left["end"] == right["start"]
         assert left["end_mile_marker"] == right["mile_marker"]
     assert events[-1]["mile_marker"] == 3000.375
+    assert len(data["logs"]) == data["summary"]["log_days"]
+    assert sum(sheet["total_miles"] for sheet in data["logs"]) == pytest.approx(
+        3000.375
+    )
+    assert all(sum(sheet["totals_min"].values()) == 1440 for sheet in data["logs"])
+    assert (
+        data["logs"][-1]["recap"]["available_min"] / 60
+        == data["summary"]["cycle_remaining_hours_at_end"]
+    )
 
 
 @pytest.mark.parametrize(
@@ -112,6 +136,7 @@ def test_long_trip_preserves_contiguous_intervals_and_fuel_distance(
         ("cycle_used_hours", "NaN"),
         ("start_time", "2026-10-03T08:00:00"),
         ("start_time", "bad datetime"),
+        ("start_time", "2026-10-03T08:00:00+05:30:30"),
         ("vehicle", ""),
         ("driver_name", "x" * 161),
     ],
@@ -163,14 +188,17 @@ def test_unknown_fields_are_not_silently_ignored(api_client, trip_input):
     }
 
 
-def test_optional_demo_details_and_default_start_are_complete(trip_input):
+def test_optional_demo_details_are_complete_and_default_time_is_deferred(trip_input):
     trip_input.pop("start_time")
     serializer = TripRequestSerializer(data=trip_input)
     assert serializer.is_valid(), serializer.errors
     data = serializer.validated_data
-    assert data["start_time"].utcoffset().total_seconds() == 0
-    assert data["start_time"].second == data["start_time"].microsecond == 0
-    assert data["carrier"] == {"name": "Demo Freight LLC", "address": "Chicago, IL"}
+    assert "start_time" not in data
+    assert data["carrier"] == {
+        "name": "Demo Freight LLC",
+        "address": "Chicago, IL",
+        "home_terminal_address": "Chicago, IL",
+    }
     assert all(data[key] for key in ("driver_name", "vehicle", "shipping_doc"))
 
 
@@ -182,6 +210,87 @@ def test_start_time_retains_offset_and_uses_whole_minutes(trip_input):
         serializer.validated_data["start_time"].isoformat()
         == "2026-10-03T23:59:00+03:00"
     )
+
+
+def test_custom_log_headers_are_preserved_on_every_day(
+    api_client, http_stub, ors_payload, trip_input
+):
+    trip_input.update(
+        {
+            "start_time": "2026-10-03T23:30:00-05:00",
+            "carrier": {
+                "name": "Test Freight",
+                "address": "Office address",
+                "home_terminal_address": "Terminal address",
+            },
+            "driver_name": "Wael",
+            "vehicle": "Truck 10 / Trailer 20",
+            "shipping_doc": "BOL-123 / Machinery",
+        }
+    )
+    http_stub.responses.append(ors_payload())
+    response = api_client.post("/api/trips/plan", trip_input, format="json")
+    assert response.status_code == 200, response.json()
+    sheets = response.json()["logs"]
+    assert len(sheets) == 2
+    for sheet in sheets:
+        assert (
+            sheet["driver_name"] == "Wael" and sheet["carrier_name"] == "Test Freight"
+        )
+        assert sheet["main_office_address"] == "Office address"
+        assert sheet["home_terminal_address"] == "Terminal address"
+        assert sheet["vehicle"] == "Truck 10 / Trailer 20"
+        assert sheet["shipping_doc"] == "BOL-123 / Machinery"
+
+
+def test_terminal_address_defaults_to_submitted_main_office(trip_input):
+    trip_input["carrier"] = {"name": "Freight", "address": "Submitted office"}
+    serializer = TripRequestSerializer(data=trip_input)
+    assert serializer.is_valid(), serializer.errors
+    assert (
+        serializer.validated_data["carrier"]["home_terminal_address"]
+        == "Submitted office"
+    )
+
+
+def test_omitted_departure_uses_current_location_offset_in_events_and_logs(
+    api_client, http_stub, ors_payload, trip_input, monkeypatch
+):
+    from datetime import UTC
+
+    from trips.services.trip_time import local_departure
+
+    trip_input.pop("start_time")
+    trip_input["current_location"] = {
+        "label": "Chicago, IL",
+        "lat": 41.8781,
+        "lng": -87.6298,
+    }
+    monkeypatch.setattr(
+        "trips.services.planner.local_departure",
+        lambda lat, lng: local_departure(
+            lat, lng, datetime(2026, 10, 3, 13, tzinfo=UTC)
+        ),
+    )
+    http_stub.responses.append(ors_payload())
+    response = api_client.post("/api/trips/plan", trip_input, format="json")
+    assert response.status_code == 200, response.json()
+    data = response.json()
+    assert data["events"][0]["start"] == "2026-10-03T08:00:00-05:00"
+    assert data["logs"][0]["timezone_offset"] == "-05:00"
+
+
+def test_api_trip_ending_midnight_has_one_sheet(
+    api_client, http_stub, ors_payload, trip_input
+):
+    trip_input["start_time"] = "2026-10-03T19:00:00-05:00"
+    http_stub.responses.append(ors_payload())
+    response = api_client.post("/api/trips/plan", trip_input, format="json")
+    assert response.status_code == 200, response.json()
+    data = response.json()
+    assert data["events"][-1]["end"] == "2026-10-04T00:00:00-05:00"
+    assert data["summary"]["log_days"] == len(data["logs"]) == 1
+    assert data["logs"][0]["segments"][-1]["end_min_of_day"] == 1440
 
 
 def test_label_only_locations_are_geocoded_once_each(

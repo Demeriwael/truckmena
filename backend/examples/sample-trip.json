@@ -8,7 +8,11 @@
   },
   "cycle_used_hours": 34,
   "start_time": "2026-10-03T08:00:00-05:00",
-  "carrier": { "name": "Demo Freight LLC", "address": "Chicago, IL" },
+  "carrier": {
+    "name": "Demo Freight LLC",
+    "address": "Chicago, IL",
+    "home_terminal_address": "Chicago, IL"
+  },
   "vehicle": "Truck 101 / Trailer 201",
   "shipping_doc": "DEMO-001 / General freight",
   "driver_name": "Demo Driver"

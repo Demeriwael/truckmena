@@ -1,0 +1,57 @@
+minimum_pre_commit_version: "4.3.0"
+default_stages: [pre-commit, manual]
+exclude: '(^|/)(\.venv|node_modules|dist|build|\.tools|\.cache)/'
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-added-large-files
+        args: [--maxkb=500, --enforce-all]
+      - id: check-merge-conflict
+        args: [--assume-in-merge]
+      - id: detect-private-key
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.2
+    hooks:
+      # The commit hook scans staged changes before they enter history.
+      - id: gitleaks
+        stages: [pre-commit]
+      # CI scans history too; a checkout has no staged changes to scan.
+      - id: gitleaks
+        alias: gitleaks-history
+        name: Detect secrets in repository history
+        entry: gitleaks git --redact --no-banner
+        stages: [manual]
+        always_run: true
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.8
+    hooks:
+      - id: ruff-check
+
+  - repo: https://github.com/psf/black
+    rev: 26.3.0
+    hooks:
+      - id: black
+        args: [--check]
+
+  - repo: local
+    hooks:
+      - id: prettier
+        name: Prettier
+        entry: node node_modules/prettier/bin/prettier.cjs --check
+        language: system
+        types_or: [javascript, jsx, ts, tsx, json, yaml, markdown, css, html]
+      - id: eslint
+        name: ESLint frontend
+        entry: node frontend/node_modules/eslint/bin/eslint.js --config frontend/eslint.config.js --max-warnings 0
+        language: system
+        files: ^frontend/
+        types_or: [javascript, jsx, ts, tsx]

@@ -1,0 +1,4 @@
+# Repository tooling. Application dependencies are added in later phases.
+black==26.3.0
+pre-commit==4.6.2
+ruff==0.16.8

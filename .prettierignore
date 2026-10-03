@@ -1,0 +1,16 @@
+.git/
+.venv/
+.tools/
+.cache/
+node_modules/
+dist/
+build/
+coverage/
+htmlcov/
+backend/staticfiles/
+backend/media/
+**/.env
+**/.env.*
+!**/.env.example
+package-lock.json
+frontend/package-lock.json

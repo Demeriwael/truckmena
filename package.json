@@ -1,0 +1,16 @@
+{
+  "name": "eld-trip-planner-tooling",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Repository formatting tools for the ELD Trip Planner monorepo",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "3.6.2"
+  }
+}

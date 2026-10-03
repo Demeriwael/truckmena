@@ -3,10 +3,11 @@
 A trip-planning assessment for property-carrying drivers: route a trip, schedule
 duty changes, and generate a Driver's Daily Log for each calendar day.
 
-**Current stage: Phase 5 — trip summary and synchronized itinerary.** The React
+**Current stage: Phase 6 — daily log sheets and PNG/PDF downloads.** The React
 app submits validated trip details to the stateless Django API and displays the
-route, required stops, summary, and chronological itinerary. The API returns
-complete daily logs; drawn SVG log sheets and exports follow in Phase 6.
+route, required stops, summary, chronological itinerary, and filled daily logs.
+Each calendar-day sheet has a drawn SVG duty graph and PNG/PDF downloads; the
+whole trip downloads as one PDF with a page for every day.
 
 ## Stack and architecture
 
@@ -171,6 +172,49 @@ Phase 5 visual verification: plan the sample trip, check both tabs, select a res
 that continues after midnight, then select Pickup on the map. Repeat at a mobile
 viewport and in dark mode. Local review screenshots are saved in the ignored
 `.tools/phase5-preview` directory; attach these to the phase PR if desired.
+
+**Log Sheets** adds a date picker and Previous/Next buttons. Choose a day, then
+use **PNG** or **PDF** for that sheet; **Download all (N)** creates one PDF in
+calendar order. **Enlarge** keeps the sheet at its original width in a scrollable
+preview, and **Fit to width** restores the responsive preview. **View log details
+as text** provides accessible, readable duty totals, exact-minute durations, and
+complete remarks on small screens. Changed or updating plans keep their old
+sheet visible but disable downloads until the next successful plan.
+
+The SVG reproduces the daily-log layout illustrated in the
+[FMCSA driver's guide, pages 21–24](https://www.fmcsa.dot.gov/sites/fmcsa.dot.gov/files/docs/Drivers_Guide_to_HOS_2016.pdf):
+filled header fields, a 24-hour grid, four duty rows, quarter-hour ticks, a stepped
+duty line, change dots, totals, and angled location remarks. Numbered remarks
+below the graph retain every full place and note, including midnight continuations.
+The assessment's A/B/C definitions are explicitly labeled **Planning recap**;
+the five-trip-day C is not the historical paper form's eight-day C.
+
+Export assumptions:
+
+- The renderer consumes API minute boundaries and the supplied decimal display
+  totals. It neither recomputes HOS rules nor rounds duty changes to quarter-hours.
+  Every sheet includes the API's OFF display padding and shows 24.00 total hours.
+- Both mileage header boxes show the day's API mileage. This assessment supplies
+  no odometer history or non-driving mileage; neither box is an odometer reading.
+- Sheets use the API's fixed departure offset and midnight period start. The
+  driver name is filled but unsigned; generated plans are not certified records.
+- Long header text and full remarks wrap without truncation. Angled callouts may
+  shorten a place, with its full value in the numbered remark immediately below.
+- Browser-local `html-to-image` captures one fixed 1,200-pixel-wide SVG at 2×
+  resolution, independent of the preview width, theme, map tiles, and pager.
+  `jsPDF` embeds that image on an 11-inch-wide page; page height grows to retain
+  long content at a consistent type size. Choose **Fit to page** when printing
+  on standard paper. PDF pages are raster images; text is available in the UI.
+- Whole-trip exports process one sheet at a time and save only after all pages
+  succeed. Leaving the Log Sheets tab or changing the plan cancels unfinished
+  work. Provider fallback warnings and recap assumptions remain in downloads.
+
+Phase 6 verification: plan the sample trip, navigate all days, enlarge the grid,
+check a rest continuing after midnight and a completed restart, then download a
+selected-day PNG/PDF and the whole-trip PDF. Repeat in dark mode and at a narrow
+mobile viewport. Check long custom headers and readable text details. Browser
+downloads and rendered PDF review images are saved in ignored
+`.tools/phase6-preview`; do not stage those local artifacts.
 
 For a separately hosted API, put its origin (for example
 `https://your-backend.example`) after `VITE_API_BASE_URL=` in the ignored
@@ -460,7 +504,10 @@ cycle usage, departure minute, and offsets including half-hour/quarter-hour
 zones. Examples cover each stop type crossing midnight, full off-duty days,
 fractional mileage, year rollover, exhausted cycles, completed/pending restarts,
 display rounding, and midnight endings. API tests verify the rendered contract
-and preservation of custom header fields. SVG and exports follow in Phase 6.
+and preservation of custom header fields. Frontend tests cover exact minute-to-SVG
+coordinates, contiguous full-day segment mapping, same-status boundaries, long
+text layout, escaping, pagination, stale-plan controls, export cancellation, and
+complete-file downloads after all pages succeed.
 
 ## Providers, caching, and usage policies
 

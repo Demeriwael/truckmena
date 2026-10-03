@@ -3,9 +3,9 @@
 A trip-planning assessment for property-carrying drivers: route a trip, schedule
 duty changes, and generate a Driver's Daily Log for each calendar day.
 
-**Current stage: Phase 2 — routing, geocoding, and REST API.** The stateless
-Django API returns routes, HOS schedules, summaries, and positioned events.
-Daily logs follow in Phase 3; the frontend starts in Phase 4.
+**Current stage: Phase 3 — backend with daily logs.** The stateless Django API
+returns routes, HOS schedules, summaries, positioned events, and one completed
+daily log per occupied calendar date. The frontend starts in Phase 4.
 
 ## Stack and architecture
 
@@ -37,8 +37,8 @@ authentication apps; no migrations are needed.
 backend/
   config/               Django settings, URLs, and WSGI entry point
   trips/                Thin views, request/response serializers, safe errors
-  trips/services/       Providers, routing, geocoding, planner, pure HOS engine
-  trips/tests/          Provider/API tests and independent HOS replay
+  trips/services/       Providers, planner, offline timezones, pure HOS/log builders
+  trips/tests/          Provider/API tests and independent schedule/log reconstruction
   examples/             Sample trip request for local smoke testing
   requirements.txt      Pinned runtime dependencies
   requirements-dev.txt  Runtime dependencies plus pytest and Hypothesis
@@ -244,12 +244,16 @@ selected suggestion, or omit both for submitted address lookup. Coordinates
 must be finite and in range. Cycle hours must be a finite number from 0 through 70. Pickup and dropoff within one meter are treated as the same location and
 rejected; current and pickup may coincide. Unknown input fields are rejected.
 
-`start_time` requires an explicit ISO timezone offset or `Z`. The API preserves
-that fixed offset for the entire trip, including day counts; it does not switch
-zones along the route or infer daylight-saving transitions. Omitted start time
-uses the current UTC minute. Seconds and microseconds are truncated to the
-minute to match the scheduler and future log grid. Optional driver, carrier,
-vehicle, and freight fields have complete demo defaults.
+If supplied, `start_time` requires an explicit ISO timezone offset or `Z`;
+offsets must use whole minutes. The API preserves that fixed offset for the
+entire trip. If omitted, it uses the current minute in the current location's
+timezone, inferred offline with `tzfpy` and `zoneinfo`. The inferred offset is
+also frozen at departure, so crossing a timezone or daylight-saving date does
+not change the planning grid. Supply an explicit offset to override coordinate
+inference, including near timezone boundaries. Seconds and microseconds are
+truncated to the minute. Optional driver, carrier, vehicle, and freight fields
+have complete demo defaults. `carrier.home_terminal_address` is optional and
+defaults to the supplied main office address.
 
 The response contains `route`, `summary`, `events`, and `logs`. Geometry is
 `[[lat,lng],...]`; legs retain `from`, `to`, and authoritative provider `miles`.
@@ -260,9 +264,9 @@ and note. `mile_marker` is the interval's start position; `end_mile_marker`
 records its end position. The separate `event-start` marker has zero duration
 and is excluded from duty accounting. All positive intervals are contiguous.
 
-**Phase 2 returns `logs: []` and `log_generation_available: false`.** Phase 3
-will populate daily log sheets. `summary.log_days` already counts occupied
-local calendar dates; ending exactly at midnight adds no empty day.
+`logs` contains completed daily sheets and `log_generation_available` is true.
+`summary.log_days` equals the number of sheets. Ending exactly at midnight adds
+no empty day; the final interval belongs to the date it just finished.
 
 Validation, missing addresses, identical pickup/dropoff, and unrouteable points
 produce clear **400** responses. Invalid JSON produces **400**; unsupported
@@ -273,10 +277,82 @@ failure after applicable fallback produces **502**. Public service errors have
 errors return a generic **500**; logs record the exception class without its
 message or traceback. No provider response or credential is echoed to users.
 
+## Daily logs and recap assumptions
+
+`build_daily_logs(schedule, start, metadata=..., places=...)` is a pure function
+in `backend/trips/services/log_builder.py`. It returns immutable daily sheets
+without network, filesystem, Django, or database I/O. The planner passes in
+already enriched event labels; midnight driving continuations use their
+computed `Mile N on route` position when no city label is available.
+
+- Every positive engine interval is split at fixed-offset midnight. Every sheet
+  covers minute 0 through 1440, with no zero-length segments, gaps, or overlaps.
+  Only time before departure and after final delivery is filled as OFF. Padding
+  is explicitly marked and never contributes mileage or resets cycle state.
+- Mileage is allocated in proportion to minutes within each driving interval,
+  using exact fractions. All daily miles sum exactly to the provider mileage
+  internally; JSON exposes numeric values without rounding daily mileage.
+- `totals_min` gives exact integer minutes for `off`, `sleeper`, `driving`, and
+  `on_duty`. `totals` gives display hours to two decimal places. Largest-remainder
+  rounding distributes hundredths so the four displayed rows always sum to
+  **24.00**, rather than independently rounding to 23.99 or 24.01. Use minutes
+  for calculations and display hours for printing.
+- Every sheet includes `date` (`MM/DD/YYYY`), sortable `iso_date`, daily
+  `from`/`to`, `total_miles`, `total_mileage_today`, `cumulative_trip_miles`,
+  `segments`, `remarks`, `recap`, driver/carrier/office/terminal/vehicle/freight
+  headers, `timezone_offset`, and midnight `period_start`. Total mileage today
+  equals routed driving mileage; no odometer or other vehicle mileage is invented.
+- Segments include minute-of-day bounds, duty status, place, source `event_id`,
+  mile-marker bounds, and `is_padding`. Remarks retain work/stop notes, annotate
+  midnight continuations, and mark the completed restart. A remark at minute
+  1440 belongs to the ending sheet when a restart finishes exactly at midnight.
+
+The assessment supplies only one cycle-usage number, not prior daily records.
+The recap is therefore a **planning estimate** under the same no-hours-drop-off
+assumption as the scheduler:
+
+| Field | Calculation                                                        |
+| ----- | ------------------------------------------------------------------ |
+| A     | Initial cycle minutes + scheduled on-duty minutes since last reset |
+| B     | `max(0, 70 hours - A)`; no unknown rolling hours become available  |
+| C     | On-duty time in the last five trip calendar dates, including today |
+
+A 34-hour restart resets A only at its scheduled completion, including the
+exact midnight boundary. An unfinished restart keeps the old cycle value.
+Recaps distinguish `restart_in_progress` from `restart_taken` and show
+"34-hour restart taken" on the completion date. Final work can take A above 70;
+B remains zero while driving is prohibited. C excludes pre-trip history and
+retains observed duty time before restarts inside its five-date window. The
+five-day C field follows this assessment's requested definition; it is not a
+reconstruction of an actual carrier's historical rolling recap.
+
+Recap A/B/C and `on_duty_today` are display hours; companion integer-minute
+fields preserve cycle and five-day calculations. Recap notes explain missing
+history. First/last-day OFF padding is a display assumption, not evidence about
+the driver's actual work outside this trip.
+
+Real records use the home terminal's time standard and total 24 hours under
+[49 CFR 395.8(f)(8) and (11)](https://www.ecfr.gov/current/title-49/subtitle-B/chapter-III/subchapter-B/part-395/subpart-A/section-395.8).
+This assessment uses the supplied departure offset or start-location offset as
+its terminal-time proxy, freezing it across DST to meet the requested 24-hour
+grid. Terminal addresses are header text, not a separate timezone input. These
+generated sheets describe a planned trip rather than certified historical duty
+records.
+
+Tests reconstruct the original schedule from log fragments and independently
+derive end-of-day cycles from duty intersections. Generated trips vary mileage,
+cycle usage, departure minute, and offsets including half-hour/quarter-hour
+zones. Examples cover each stop type crossing midnight, full off-duty days,
+fractional mileage, year rollover, exhausted cycles, completed/pending restarts,
+display rounding, and midnight endings. API tests verify the rendered contract
+and preservation of custom header fields. SVG and exports follow in Phase 6.
+
 ## Providers, caching, and usage policies
 
 ORS receives **one** `driving-hgv` directions request with all three waypoints,
-using GeoJSON and no turn instructions. Server-only authorization headers keep
+using GeoJSON with instructions enabled, because ORS otherwise removes the
+per-leg distance segments. Turn steps are discarded during parsing and are
+not cached or returned to the frontend. Server-only authorization headers keep
 the key out of query strings. Provider distances feed exact fractional engine
 miles; travel duration is never used for HOS scheduling. A per-leg haversine
 index scales map positions to each leg's provider distance so pickup stays at
@@ -333,6 +409,7 @@ locally with the ignored environment file.
 Provider references:
 [ORS request/response types](https://giscience.github.io/openrouteservice/api-reference/endpoints/directions/requests-and-return-types),
 [ORS geocoder](https://giscience.github.io/openrouteservice/api-reference/endpoints/geocoder/),
+[ORS segment/instruction behavior](https://github.com/GIScience/openrouteservice/blob/main/ors-engine/src/main/java/org/heigit/ors/routing/RouteResultBuilder.java#L132),
 [OSRM API](https://project-osrm.org/docs/v5.24.0/api/),
 [OSRM demo server](https://github.com/Project-OSRM/osrm-backend/wiki/Demo-server).
 
@@ -407,8 +484,8 @@ Additional assessment assumptions:
   range.
 
 Split-sleeper pairing, adverse-driving extensions, short-haul exceptions, and
-team drivers are outside the assessment scope. Daily-log 24-hour invariants and
-recap treatment are part of Phase 3.
+team drivers are outside the assessment scope. Log-day and recap assumptions
+are documented above and enforced by the daily-log tests.
 
 ## Delivery phases
 

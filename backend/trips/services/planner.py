@@ -8,7 +8,9 @@ from django.conf import settings
 from trips.exceptions import InvalidStartTime, SameLocations
 from trips.services.geocoding import resolve_location, reverse_place
 from trips.services.hos_engine import EventType, RouteLeg, schedule_trip
+from trips.services.log_builder import LogMetadata, build_daily_logs
 from trips.services.routing import RoutePositionIndex, get_route, same_point
+from trips.services.trip_time import local_departure
 
 
 def calendar_days(start: datetime, duration_min: int) -> int:
@@ -30,7 +32,9 @@ def plan_trip(data: dict) -> dict:
         for i, leg in enumerate(route.legs)
     )
     schedule = schedule_trip(legs, data["cycle_used_hours"])
-    start = data["start_time"]
+    start = data.get("start_time") or local_departure(
+        locations[0].lat, locations[0].lng
+    )
     try:
         log_days = calendar_days(start, schedule.total_duration_min)
     except OverflowError:
@@ -93,6 +97,21 @@ def plan_trip(data: dict) -> dict:
                 "note": event.note,
             }
         )
+    carrier = data["carrier"]
+    logs = build_daily_logs(
+        schedule,
+        start,
+        metadata=LogMetadata(
+            driver_name=data["driver_name"],
+            carrier_name=carrier["name"],
+            main_office_address=carrier["address"],
+            home_terminal_address=carrier["home_terminal_address"],
+            vehicle=data["vehicle"],
+            shipping_doc=data["shipping_doc"],
+        ),
+        places={event["id"]: event["place"] for event in events},
+    )
+    assert len(logs) == log_days, "Summary day count must match the generated sheets"
     return {
         "route": {
             "geometry": route.geometry,
@@ -127,7 +146,7 @@ def plan_trip(data: dict) -> dict:
             "cycle_remaining_hours_at_end": schedule.cycle_remaining_min / 60,
         },
         "events": events,
-        "logs": [],
+        "logs": [log.to_dict() for log in logs],
         "warnings": list(route.warnings),
-        "log_generation_available": False,
+        "log_generation_available": True,
     }

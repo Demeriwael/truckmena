@@ -1,11 +1,12 @@
 """Explicit request validation and JSON output contracts."""
 
 import math
-from datetime import datetime
 
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework import serializers
+
+from trips.services.hos_engine import DutyStatus
 
 
 class StrictSerializer(serializers.Serializer):
@@ -46,11 +47,9 @@ class OffsetDateTimeField(serializers.DateTimeField):
             value = None
         if value is None or timezone.is_naive(value):
             self.fail("offset")
+        if value.utcoffset().total_seconds() % 60:
+            self.fail("offset")
         return value.replace(second=0, microsecond=0)
-
-
-def default_start() -> datetime:
-    return timezone.now().replace(second=0, microsecond=0)
 
 
 class LocationSerializer(StrictSerializer):
@@ -69,10 +68,19 @@ class LocationSerializer(StrictSerializer):
 class CarrierSerializer(StrictSerializer):
     name = serializers.CharField(max_length=160, default="Demo Freight LLC")
     address = serializers.CharField(max_length=300, default="Chicago, IL")
+    home_terminal_address = serializers.CharField(max_length=300, required=False)
+
+    def validate(self, attrs):
+        attrs.setdefault("home_terminal_address", attrs["address"])
+        return attrs
 
 
 def default_carrier() -> dict:
-    return {"name": "Demo Freight LLC", "address": "Chicago, IL"}
+    return {
+        "name": "Demo Freight LLC",
+        "address": "Chicago, IL",
+        "home_terminal_address": "Chicago, IL",
+    }
 
 
 class TripRequestSerializer(StrictSerializer):
@@ -80,7 +88,7 @@ class TripRequestSerializer(StrictSerializer):
     pickup_location = LocationSerializer()
     dropoff_location = LocationSerializer()
     cycle_used_hours = FiniteFloatField(min_value=0, max_value=70)
-    start_time = OffsetDateTimeField(required=False, default=default_start)
+    start_time = OffsetDateTimeField(required=False)
     carrier = CarrierSerializer(required=False, default=default_carrier)
     vehicle = serializers.CharField(max_length=160, default="Truck 101 / Trailer 201")
     shipping_doc = serializers.CharField(
@@ -99,16 +107,19 @@ class SuggestionSerializer(serializers.Serializer):
     lng = serializers.FloatField()
 
 
-class LegSerializer(serializers.Serializer):
+class LocationPairSerializer(serializers.Serializer):
     from_place = serializers.CharField(source="from")
     to_place = serializers.CharField(source="to")
-    miles = serializers.FloatField()
 
     def to_representation(self, instance):
         result = super().to_representation(instance)
         result["from"] = result.pop("from_place")
         result["to"] = result.pop("to_place")
         return result
+
+
+class LegSerializer(LocationPairSerializer):
+    miles = serializers.FloatField()
 
 
 class RouteSerializer(serializers.Serializer):
@@ -151,10 +162,75 @@ class EventSerializer(serializers.Serializer):
     note = serializers.CharField()
 
 
+class DutyTotalsSerializer(serializers.Serializer):
+    off = serializers.FloatField()
+    sleeper = serializers.FloatField()
+    driving = serializers.FloatField()
+    on_duty = serializers.FloatField()
+
+
+class DutyMinutesSerializer(serializers.Serializer):
+    off = serializers.IntegerField()
+    sleeper = serializers.IntegerField()
+    driving = serializers.IntegerField()
+    on_duty = serializers.IntegerField()
+
+
+class LogSegmentSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=tuple(DutyStatus))
+    start_min_of_day = serializers.IntegerField()
+    end_min_of_day = serializers.IntegerField()
+    place = serializers.CharField()
+    start_mile_marker = serializers.FloatField()
+    end_mile_marker = serializers.FloatField()
+    event_id = serializers.CharField(allow_null=True)
+    is_padding = serializers.BooleanField()
+
+
+class LogRemarkSerializer(serializers.Serializer):
+    minute_of_day = serializers.IntegerField()
+    place = serializers.CharField()
+    note = serializers.CharField()
+
+
+class RecapSerializer(serializers.Serializer):
+    a = serializers.FloatField()
+    b = serializers.FloatField()
+    c = serializers.FloatField()
+    on_duty_today = serializers.FloatField()
+    cycle_used_min = serializers.IntegerField()
+    available_min = serializers.IntegerField()
+    last_five_days_on_duty_min = serializers.IntegerField()
+    restart_taken = serializers.BooleanField()
+    restart_in_progress = serializers.BooleanField()
+    notes = serializers.ListField(child=serializers.CharField())
+
+
+class DailyLogSerializer(LocationPairSerializer):
+    date = serializers.CharField()
+    iso_date = serializers.CharField()
+    total_miles = serializers.FloatField()
+    total_mileage_today = serializers.FloatField()
+    cumulative_trip_miles = serializers.FloatField()
+    totals = DutyTotalsSerializer()
+    totals_min = DutyMinutesSerializer()
+    segments = LogSegmentSerializer(many=True)
+    remarks = LogRemarkSerializer(many=True)
+    recap = RecapSerializer()
+    driver_name = serializers.CharField()
+    carrier_name = serializers.CharField()
+    main_office_address = serializers.CharField()
+    home_terminal_address = serializers.CharField()
+    vehicle = serializers.CharField()
+    shipping_doc = serializers.CharField()
+    timezone_offset = serializers.CharField()
+    period_start = serializers.CharField()
+
+
 class TripResponseSerializer(serializers.Serializer):
     route = RouteSerializer()
     summary = SummarySerializer()
     events = EventSerializer(many=True)
-    logs = serializers.ListField(child=serializers.DictField())
+    logs = DailyLogSerializer(many=True)
     warnings = serializers.ListField(child=serializers.CharField())
     log_generation_available = serializers.BooleanField()

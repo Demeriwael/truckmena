@@ -9,6 +9,21 @@ The service names below are project labels. Hosting platforms choose the actual
 public domains. Copy the domain shown in each dashboard rather than assuming
 that the name is available. Never paste a secret into a Git command or a chat.
 
+## Current production deployment
+
+| Setting                               | Current value                                               |
+| ------------------------------------- | ----------------------------------------------------------- |
+| Frontend                              | [Wayline](https://truckmena-frontend.vercel.app/)           |
+| Backend health                        | [API health](https://truckmena-api.onrender.com/api/health) |
+| Vercel project / root / preset        | `truckmena-frontend` / `frontend` / Vite                    |
+| Render service / root                 | `truckmena-api` / `backend`                                 |
+| Vercel Production `VITE_API_BASE_URL` | `https://truckmena-api.onrender.com`                        |
+| Render `CORS_ALLOWED_ORIGINS`         | `https://truckmena-frontend.vercel.app`                     |
+
+These two environment values are public origins. The ORS and Django credentials
+are supplied through Render's secret environment fields. Local `.env` files are
+not uploaded to either host.
+
 ## 1. Create the Render backend
 
 1. Open [Render](https://dashboard.render.com/), sign in, and connect the GitHub
@@ -88,8 +103,10 @@ under the service's settings. Do not run migrations for this stateless app.
 ## 2. Create the Vercel frontend
 
 1. Open [Vercel](https://vercel.com/new), sign in, and import the same repository.
-2. Set project name **truckmena**, framework preset **Vite**, and **Root Directory**
+2. Set project name **truckmena-frontend**, framework preset **Vite**, and **Root Directory**
    to **frontend**. The config file is `frontend/vercel.json`, relative to that root.
+   If the importer initially selects **Services** from `render.yaml`, select the
+   **frontend** root and **Vite** preset before deploying.
 3. Confirm install command **npm ci**, build command **npm run build**, and output
    directory **dist**. Use Node **22.x**; `frontend/package.json` constrains it to
    the tested major version.
@@ -142,8 +159,9 @@ Perform these checks using the actual production domains:
 - Provider: a working ORS key should produce `route.provider = "ors"` and
   `route.profile = "driving-hgv"`. If it says `osrm`, check the visible truck
   restrictions warning and investigate the server-side ORS configuration.
-- Logs: inspect every day and its 24.00-hour totals. Download a PNG and the
-  whole-trip PDF; confirm that the PDF has one complete page per log day.
+- Logs: inspect every day and its 24.00-hour totals. The **PNG** and **PDF** buttons
+  export the displayed day. **Download all (N)** creates the whole-trip PDF;
+  confirm that it has one complete page per log day.
 - Refresh a URL such as `/missing-page`; confirm the application's 404 screen.
 - Test the production URL in a private browser window to detect any deployment
   protection/login gate that would prevent a hiring reviewer from opening it.
@@ -153,7 +171,41 @@ Perform these checks using the actual production domains:
   never include `ORS_API_KEY`, and never call ORS directly.
 
 Keep public frontend/API URLs and the Loom recording with the submission.
-Do not describe the app as live or tag the final release until these checks pass.
+Record the results below and complete remaining checks before tagging the final
+release.
+
+### Verification record
+
+Checked on **October 4, 2026**, following the deployment-secret fix:
+
+| Check                   | Result / evidence                                                                                                                                                   |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend health and CORS | HTTP 200; expected service JSON; `Access-Control-Allow-Origin` exactly matches the production frontend                                                              |
+| Real ORS truck route    | Sample API request returned `provider: ors`, `profile: driving-hgv`, two route legs, and no fallback warnings                                                       |
+| Sample schedule         | 2,398.817 provider miles; 43.65 driving hours; five log days for the checked-in October 3, 08:00 departure; full-day coverage and contiguous events verified        |
+| Address autocomplete    | Submitted Chicago search returned five suggestions                                                                                                                  |
+| Private-window access   | Owner confirmed that the deployed planner works in a private window                                                                                                 |
+| Browser PDF exports     | Owner supplied a single-day PDF and the complete October 4–9 six-page PDF; every page was visually inspected with no visible clipping; daily totals are 24.00 hours |
+| Restart display         | Full-trip PDF shows a 34-hour restart across October 7–8 and the recap reset on completion                                                                          |
+| Main branch CI          | Repository hygiene, frontend quality/tests/build, and backend quality/tests passed for merge `fa7a195`                                                              |
+
+The API sample and browser export use different departure times, so five versus
+six calendar-day sheets is expected. This record preserves the results of those
+specific checks; it does not replace verification after future deployments.
+
+Remaining owner checks on the deployed frontend:
+
+- Open `/missing-page` and refresh; confirm the application 404 screen.
+- Check desktop and approximately 390px layouts in both themes, keyboard focus,
+  PNG export, and the browser console/network requests listed above.
+- Leave the frontend and backend unused for at least 20 minutes, then plan a
+  sample trip and confirm that a sleeping backend wakes and planning completes.
+  Local simulated wake-up and cancellation checks have passed; a controlled
+  deployed idle-start check has not yet been recorded.
+
+The final owner release checkpoint also verifies tracked environment files and
+creates the annotated `v1.0.0` tag. Record a Loom video using the
+[submission outline](SUBMISSION.md) if required by the submission form.
 
 ## Cold starts and keeping the demo ready
 

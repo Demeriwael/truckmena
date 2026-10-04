@@ -2,15 +2,29 @@
 
 ## Reviewer walkthrough
 
-Open the production frontend, choose **Use sample trip**, and press **Plan trip**.
+Open the [production frontend](https://truckmena-frontend.vercel.app/), choose
+**Use sample trip**, and press **Plan trip**.
 The cross-country sample includes coordinates to make routing easy to try.
 Confirm the provider warning if the route uses OSRM. View **Summary**, select an
-event in **Itinerary** to open its map popup, then browse **Log Sheets** and export
-the whole-trip PDF. Every day totals 24.00 hours, including off-duty padding
+event in **Itinerary** to open its map popup, then browse **Log Sheets** and click
+**Download all (N)** to export the whole-trip PDF. The separate **PDF** button
+exports the displayed day. Every day totals 24.00 hours, including off-duty padding
 outside the planned trip.
 
-See [deployment and live verification](DEPLOYMENT.md) before sharing the URLs.
-The repository alone does not prove that the deployed ORS credential works.
+The [backend health URL](https://truckmena-api.onrender.com/api/health) returns
+the service status without making provider requests. The free backend can take
+time to wake before the first plan. Live ORS routing, autocomplete, private-window
+access, and the six-page PDF were checked on October 4, 2026; see the
+[verification record and remaining checks](DEPLOYMENT.md#verification-record).
+
+## Submission links
+
+| Item           | Link / status                                                  |
+| -------------- | -------------------------------------------------------------- |
+| Frontend       | [Wayline trip planner](https://truckmena-frontend.vercel.app/) |
+| Backend health | [API health](https://truckmena-api.onrender.com/api/health)    |
+| Repository     | [GitHub repository](https://github.com/Demeriwael/truckmena)   |
+| Loom           | Owner recording; use the four-minute outline below             |
 
 ## 4-minute Loom talk track
 
@@ -18,10 +32,10 @@ The repository alone does not prove that the deployed ORS credential works.
 | --------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0:00–0:45 | Sample trip, route, and Summary                | “Wayline turns a truck trip and current cycle usage into a route, required stops, and daily logs.” Identify distance, trip duration, and provider/fallback warning.    |
 | 0:45–1:25 | Itinerary → selected map event                 | Explain 8-hour driving breaks, 11-hour driving allowance, the running 14-hour window, 70-hour cycle, 10-hour rests, 34-hour restart, and fuel at 1,000-mile gaps.      |
-| 1:25–2:05 | Log Sheets, next day, Download trip PDF        | Show midnight splitting, four duty rows, totals summing to 24.00, remarks, restart recap, and one exported page per day. These are planned sheets, not signed records. |
+| 1:25–2:05 | Log Sheets, next day, Download all (N)         | Show midnight splitting, four duty rows, totals summing to 24.00, remarks, restart recap, and one exported page per day. These are planned sheets, not signed records. |
 | 2:05–2:55 | Architecture diagram and backend services      | Pure minute-based HOS functions; no I/O in the engine/log builder. Provider mileage drives scheduling at 55 mph. One ORS truck-routing request uses all three points.  |
 | 2:55–3:30 | Tests and representative boundary cases        | Exact limits, independent schedule replay, property-style invariants, full-day coverage, frontend contract checks, keyboard focus, and bounded service wake-up.        |
-| 3:30–4:00 | GitHub merged PRs/CI, deployment configuration | Eight phased feature branches and regular merges; Conventional Commits, hooks, and CI. Server-only credentials, Vercel/Render separation, documented trade-offs.       |
+| 3:30–4:00 | GitHub merged PRs/CI, deployment configuration | Phased feature branches and regular merges; Conventional Commits, hooks, and CI. Server-only credentials, Vercel/Render separation, documented trade-offs.             |
 
 Useful source files to open before recording:
 
@@ -57,13 +71,16 @@ than narrating every stop. Finish by opening the downloaded PDF.
 
 ## Final owner checklist
 
-- Merge the deployment PR only after CI is green, synchronize local `main`, and
+- Merge the documentation PR only after CI is green, synchronize local `main`, and
   remove the completed branch through the Git checkpoints in this chat.
-- Complete the live checks in `DEPLOYMENT.md`, including real ORS routing and
-  autocomplete, a multi-day PDF, private-window access, and a cold start.
+- Complete the remaining deployed UI and idle-start checks in
+  [the verification record](DEPLOYMENT.md#verification-record). ORS routing,
+  autocomplete, private-window access, and the multi-day PDF are recorded there.
 - Confirm that tracked environment files consist only of the two `.env.example`
   files using the final Git checkpoint. Never paste credentials with the output.
-- Provide the frontend URL, backend `/api/health` URL, repository URL, and Loom URL.
+- Share the production frontend and health URLs above, the repository URL, and
+  the Loom recording URL if required. The talk track is ready; the owner records
+  and shares the video.
 - Replace the screenshot placeholders in README if newer deployed screenshots
   are desired. Existing QA images are local, ignored artifacts.
 - Create and push the annotated `v1.0.0` tag through the final owner checkpoint

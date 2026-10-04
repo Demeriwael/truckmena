@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
 import { LoaderCircle } from "lucide-react";
+import type { PlanningPhase } from "@/lib/api";
 
-export function PlanningProgress({ pending }: { pending: boolean }) {
+export function PlanningProgress({
+  pending,
+  phase = "planning",
+}: {
+  pending: boolean;
+  phase?: PlanningPhase;
+}) {
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
     if (!pending) return;
@@ -12,15 +19,28 @@ export function PlanningProgress({ pending }: { pending: boolean }) {
   if (!pending) return null;
   // One server request performs every stage; do not claim a stage has completed.
   return (
-    <div className="planning-progress" role="status">
-      <LoaderCircle size={20} className="spin" />
+    <div
+      className="planning-progress"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <LoaderCircle size={20} className="spin" aria-hidden="true" />
       <div>
         <strong>
-          {elapsed >= 12000 ? "Still planning your trip…" : "Planning your trip…"}
+          {phase === "connecting"
+            ? elapsed >= 12000
+              ? "Waiting for the server…"
+              : "Connecting to the planning service…"
+            : elapsed >= 12000
+              ? "Still planning your trip…"
+              : "Planning your trip…"}
         </strong>
         <span>
-          {elapsed >= 12000
-            ? "The service may be waking up. Your route is still being prepared."
+          {phase === "connecting"
+            ? elapsed >= 12000
+              ? "The server may be waking up. This can take about a minute; please keep this page open."
+              : "Checking that the server is ready before submitting your trip."
             : "Finding a route, applying HOS rules, and preparing daily logs."}
         </span>
       </div>

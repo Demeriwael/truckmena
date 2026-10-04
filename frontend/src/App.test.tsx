@@ -36,9 +36,65 @@ vi.mock("@/components/route-map", () => ({
     </div>
   ),
 }));
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
 
 describe("trip planning flow", () => {
+  it("shows connection and planning phases before focusing the finished result", async () => {
+    vi.stubEnv("VITE_API_BASE_URL", "https://api.example.invalid");
+    vi.stubGlobal("matchMedia", () => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    let resolveHealth: (response: Response) => void = () => undefined;
+    let resolvePlan: (response: Response) => void = () => undefined;
+    const health = new Promise<Response>((resolve) => {
+      resolveHealth = resolve;
+    });
+    const plan = new Promise<Response>((resolve) => {
+      resolvePlan = resolve;
+    });
+    const fetchMock = vi.fn().mockReturnValueOnce(health).mockReturnValueOnce(plan);
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <App />
+      </QueryClientProvider>,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Use sample trip" }));
+    await user.click(screen.getByRole("button", { name: "Plan trip" }));
+    expect(
+      await screen.findByText("Connecting to the planning service…"),
+    ).toBeVisible();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      resolveHealth(
+        new Response(JSON.stringify({ status: "ok", service: "eld-trip-planner" })),
+      );
+    });
+    expect(
+      await screen.findByText(
+        "Finding a route, applying HOS rules, and preparing daily logs.",
+      ),
+    ).toBeVisible();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      resolvePlan(new Response(JSON.stringify(fixture)));
+    });
+    expect(
+      await screen.findByRole("status", { name: "Your route is ready" }),
+    ).toHaveFocus();
+    expect(
+      screen.queryByText("Connecting to the planning service…"),
+    ).not.toBeInTheDocument();
+  });
   it("retries a failed request from the banner using current form values", async () => {
     vi.stubGlobal("matchMedia", () => ({
       matches: false,

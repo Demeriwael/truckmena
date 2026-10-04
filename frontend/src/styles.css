@@ -24,10 +24,10 @@
   --foreground: #18283f;
   --card: #fff;
   --muted: #f1f4f8;
-  --muted-foreground: #64748b;
+  --muted-foreground: #576981;
   --primary: #2563eb;
   --border: #e1e7ef;
-  --input-border: #d2dbe7;
+  --input-border: #7a8ba4;
   --success: #16754e;
   --success-bg: #edf8f1;
   --amber: #8a540b;
@@ -43,9 +43,9 @@
   --card: #172338;
   --muted: #1d2c43;
   --muted-foreground: #a6b5ca;
-  --primary: #4f8bff;
+  --primary: #73a3ff;
   --border: #30405a;
-  --input-border: #405473;
+  --input-border: #7085a5;
   --success: #88e4b4;
   --success-bg: #173b32;
   --amber: #ffda89;
@@ -94,21 +94,37 @@ summary:focus-visible {
   outline: 3px solid var(--primary);
   outline-offset: 3px;
 }
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+input,
+button,
+select,
+summary,
+[tabindex] {
+  scroll-margin-block: 90px 120px;
+}
+main:focus {
+  outline: none;
+}
 button {
   touch-action: manipulation;
 }
 .skip-link {
   position: fixed;
-  top: -80px;
+  top: 12px;
   left: 16px;
   z-index: 10000;
   padding: 12px 20px;
   background: var(--card);
   border: 2px solid var(--primary);
   border-radius: 8px;
+  clip-path: inset(50%);
 }
 .skip-link:focus {
-  top: 12px;
+  clip-path: none;
 }
 .button {
   display: inline-flex;
@@ -178,7 +194,7 @@ button {
 }
 .input::placeholder {
   color: var(--muted-foreground);
-  opacity: 0.85;
+  opacity: 1;
 }
 .input:focus {
   border-color: var(--primary);
@@ -187,6 +203,10 @@ button {
 }
 .input[aria-invalid="true"] {
   border-color: var(--danger);
+}
+.input:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
 }
 .app-header {
   height: 76px;
@@ -335,6 +355,7 @@ h1 {
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: thin;
+  scroll-padding-block: 12px 120px;
 }
 .form-heading,
 .planning-note {
@@ -499,6 +520,7 @@ h2 {
   font-size: 10px;
   background: transparent;
   border: 0;
+  min-height: 32px;
 }
 .swap-button:hover {
   color: var(--primary);
@@ -524,6 +546,7 @@ h2 {
   font-size: 12px;
   cursor: pointer;
   border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
 }
 .suggestion:last-child {
   border-bottom: 0;
@@ -579,10 +602,14 @@ h2 {
 }
 .cycle-slider {
   appearance: none;
-  height: 5px;
+  height: 28px;
   border-radius: 8px;
   width: 100%;
-  margin-top: 22px;
+  margin-top: 12px;
+  background-size: 100% 6px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-color: transparent;
   cursor: pointer;
 }
 .cycle-slider::-webkit-slider-thumb {
@@ -637,6 +664,7 @@ h2 {
   background: transparent;
   font-size: 13px;
   color: var(--foreground);
+  min-height: 32px;
 }
 .details-toggle > span {
   display: flex;
@@ -674,6 +702,37 @@ h2 {
   margin: 6px 0 0;
   color: var(--danger);
   font-size: 11px;
+}
+.form-error-summary {
+  margin: 18px;
+  padding: 16px;
+  border: 2px solid var(--danger);
+  border-radius: 9px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.form-error-summary h3 {
+  margin: 0;
+  font-size: 14px;
+}
+.form-error-summary p {
+  margin: 6px 0;
+}
+.form-error-summary ul {
+  padding-left: 18px;
+  margin: 8px 0 0;
+}
+.form-error-summary button {
+  background: transparent;
+  border: 0;
+  padding: 5px 0;
+  color: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .form-actions {
   padding: 22px 26px 18px;
@@ -902,7 +961,7 @@ h2 {
   background: #2563eb;
 }
 .legend-pickup {
-  background: #a96907;
+  background: #a26207;
 }
 .legend-dropoff {
   background: #16754e;
@@ -948,7 +1007,7 @@ h2 {
   background: #2563eb;
 }
 .marker-pickup {
-  background: #a96907;
+  background: #a26207;
 }
 .marker-dropoff {
   background: #16754e;
@@ -967,14 +1026,20 @@ h2 {
   background: #394860;
   font-size: 10px;
 }
-.leaflet-popup-content-wrapper,
-.leaflet-popup-tip {
+.map-card .leaflet-popup-content-wrapper,
+.map-card .leaflet-popup-tip {
   background: var(--card);
   color: var(--foreground);
 }
 .leaflet-popup-content {
   margin: 15px 18px;
   min-width: 225px;
+}
+.leaflet-container a.leaflet-popup-close-button {
+  color: var(--muted-foreground);
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
 }
 .popup-kind {
   color: var(--primary);
@@ -1066,6 +1131,8 @@ h2 {
   display: grid;
   font-size: 10px;
   gap: 3px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .map-stops strong {
   font-size: 11px;
@@ -1203,7 +1270,7 @@ h2 {
   background: #2563eb;
 }
 .marker-text-driving {
-  color: #2563eb;
+  color: var(--primary);
 }
 .trip-results {
   --muted-foreground: #52627a;
@@ -1536,6 +1603,7 @@ h2 {
   overscroll-behavior: contain;
   scrollbar-width: thin;
   padding: 0 24px 16px;
+  scroll-padding-block: 80px 20px;
 }
 .itinerary-day h3 {
   display: flex;
@@ -1969,6 +2037,9 @@ h2 {
   align-items: center;
   gap: 10px;
 }
+.log-download-buttons {
+  flex-wrap: wrap;
+}
 .log-toolbar,
 .log-page-controls {
   justify-content: space-between;
@@ -2006,7 +2077,7 @@ h2 {
 .log-date-picker select {
   background: var(--card);
   color: var(--foreground);
-  border: 1px solid var(--border);
+  border: 1px solid var(--input-border);
   border-radius: 6px;
   padding: 5px 8px;
   font: inherit;
@@ -2127,6 +2198,21 @@ h2 {
 .log-loading {
   padding: 26px;
 }
+@media (min-width: 768px) and (max-width: 1023px) {
+  .planner-layout {
+    grid-template-columns: 1fr;
+  }
+  .planner-card {
+    display: block;
+    max-height: none;
+  }
+  .planner-card > form {
+    overflow: visible;
+  }
+  .map-canvas {
+    height: 460px;
+  }
+}
 @media (max-width: 767px) {
   .log-sheets {
     padding: 20px 16px;
@@ -2169,6 +2255,63 @@ h2 {
     gap: 5px;
     padding-right: 9px;
     padding-left: 9px;
+  }
+}
+@media (max-width: 767px), (pointer: coarse) {
+  .button-small,
+  .button-icon,
+  .swap-button,
+  .details-toggle,
+  .log-date-picker select {
+    min-height: 44px;
+  }
+  .button-icon {
+    width: 44px;
+    height: 44px;
+  }
+  .input,
+  .hours-input .input {
+    font-size: 16px;
+  }
+  .hours-input .input {
+    height: 44px;
+  }
+  .hours-input span {
+    top: 15px;
+  }
+  .clear-address {
+    top: 0;
+    right: 0;
+    width: 44px;
+    height: 44px;
+  }
+  .address-status {
+    right: 47px;
+  }
+  .address-control .input {
+    padding-right: 72px;
+  }
+  .leaflet-touch .leaflet-bar a {
+    width: 44px;
+    height: 44px;
+    line-height: 44px;
+  }
+  .form-error-summary button {
+    min-height: 44px;
+  }
+  .leaflet-container a.leaflet-popup-close-button {
+    width: 44px;
+    height: 44px;
+    line-height: 44px;
+  }
+}
+@media (max-width: 359px) {
+  .log-download-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .log-download-buttons > button:first-child {
+    grid-column: 1 / -1;
   }
 }
 @media print {

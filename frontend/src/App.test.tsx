@@ -1,5 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
@@ -57,11 +64,13 @@ describe("trip planning flow", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "planning service is unavailable",
     );
+    expect(screen.getByRole("alert")).toHaveFocus();
     await user.click(screen.getByRole("button", { name: "Try again" }));
     await waitFor(() =>
       expect(screen.getByText("Your route is ready")).toBeInTheDocument(),
     );
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("status", { name: "Your route is ready" })).toHaveFocus();
   });
   it("links map and itinerary selections and resets them when a new plan arrives", async () => {
     vi.stubGlobal("matchMedia", () => ({
@@ -106,6 +115,11 @@ describe("trip planning flow", () => {
       expect(pickup).toHaveAttribute("aria-pressed", "true");
       fireEvent.mouseEnter(screen.getByRole("button", { name: "Pickup map marker" }));
       expect(pickup).toHaveClass("is-hovered");
+      scroll.mockClear();
+      pickup.focus();
+      await user.keyboard("{Enter}");
+      expect(pickup).toHaveFocus();
+      expect(scroll).not.toHaveBeenCalled();
       await user.click(screen.getByRole("button", { name: /Show Delivery event/ }));
       expect(screen.getByTestId("map-selection")).toHaveTextContent("event-0004");
       expect(scroll).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
@@ -148,4 +162,40 @@ describe("trip planning flow", () => {
       HTMLElement.prototype.scrollIntoView = originalScroll;
     }
   }, 10000);
+  it("keeps focus on a control chosen while the request is pending", async () => {
+    vi.stubGlobal("matchMedia", () => ({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    let resolveResponse: (response: Response) => void = () => undefined;
+    const response = new Promise<Response>((resolve) => {
+      resolveResponse = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => response),
+    );
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <App />
+      </QueryClientProvider>,
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Use sample trip" }));
+    await user.click(screen.getByRole("button", { name: "Plan trip" }));
+    expect(
+      await screen.findByRole("button", { name: "Planning your trip…" }),
+    ).toBeDisabled();
+    const theme = screen.getByRole("button", { name: /^Switch to .* theme$/ });
+    await user.click(theme);
+    await act(async () => {
+      resolveResponse(new Response(JSON.stringify(fixture)));
+    });
+    await screen.findByText("Your route is ready");
+    expect(theme).toHaveFocus();
+  });
 });

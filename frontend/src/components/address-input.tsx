@@ -1,4 +1,12 @@
-import { useId, useState, type KeyboardEvent, type Ref } from "react";
+import {
+  useEffect,
+  useId,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type Ref,
+} from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Check, LoaderCircle, MapPin, X } from "lucide-react";
 import { autocomplete } from "@/lib/api";
@@ -28,6 +36,9 @@ export function AddressInput({
   error,
 }: AddressInputProps) {
   const id = useId();
+  const input = useRef<HTMLInputElement | null>(null);
+  const popover = useRef<HTMLDivElement>(null);
+  useImperativeHandle(inputRef, () => input.current!, []);
   const [focused, setFocused] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [active, setActive] = useState(-1);
@@ -48,6 +59,15 @@ export function AddressInput({
   });
   const open = focused && !dismissed && !selected && value.label.trim().length >= 3;
   const options = query === value.label.trim() ? (suggestions.data ?? []) : [];
+  useEffect(() => {
+    const option = document.getElementById(`${id}-option-${active}`);
+    const container = popover.current;
+    if (!open || !option || !container) return;
+    const item = option.getBoundingClientRect();
+    const bounds = container.getBoundingClientRect();
+    if (item.bottom > bounds.bottom) container.scrollTop += item.bottom - bounds.bottom;
+    else if (item.top < bounds.top) container.scrollTop += item.top - bounds.top;
+  }, [active, id, open]);
   const choose = (location: Location) => {
     onChange(location);
     setDismissed(true);
@@ -60,7 +80,18 @@ export function AddressInput({
       setActive(-1);
       return;
     }
-    if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key) && options.length) {
+    // Home/End remain native text-editing keys until an option is active.
+    // Modified arrow keys also belong to the input's text cursor.
+    if (
+      !event.altKey &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.shiftKey &&
+      !selected &&
+      (["ArrowDown", "ArrowUp"].includes(event.key) ||
+        (open && active >= 0 && ["Home", "End"].includes(event.key))) &&
+      options.length
+    ) {
       event.preventDefault();
       setDismissed(false);
       setActive((index) =>
@@ -90,7 +121,7 @@ export function AddressInput({
         <span className={`location-dot location-dot-${kind}`} aria-hidden="true" />
         <Input
           id={id}
-          ref={inputRef}
+          ref={input}
           value={value.label}
           placeholder={placeholder}
           role="combobox"
@@ -101,7 +132,8 @@ export function AddressInput({
             open && options[active] ? `${id}-option-${active}` : undefined
           }
           aria-invalid={Boolean(error)}
-          aria-describedby={error ? `${id}-error` : undefined}
+          aria-required="true"
+          aria-describedby={`${id}-help${error ? ` ${id}-error` : ""}`}
           autoComplete="off"
           maxLength={300}
           onFocus={() => {
@@ -141,14 +173,27 @@ export function AddressInput({
             onClick={() => {
               onChange({ label: "" });
               setActive(-1);
+              setDismissed(false);
+              input.current?.focus();
             }}
           >
             <X size={14} />
           </button>
         )}
       </div>
+      <span id={`${id}-help`} className="sr-only">
+        Enter at least three characters for suggestions. Use the up and down arrows to
+        choose, Enter to select, or Escape to close. A full address can also be
+        submitted directly.
+      </span>
+      {open && options.length > 0 && (
+        <span className="sr-only" role="status">
+          {options.length} address suggestions available. Use the up and down arrows to
+          choose.
+        </span>
+      )}
       {open && (
-        <div className="suggestions-popover">
+        <div className="suggestions-popover" ref={popover}>
           {options.length > 0 ? (
             <div
               id={`${id}-options`}

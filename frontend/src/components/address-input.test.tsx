@@ -87,4 +87,27 @@ describe("address autocomplete", () => {
     expect(await screen.findByText(/Suggestions unavailable/)).toBeInTheDocument();
     expect(input).toHaveValue("123 Full Address");
   });
+  it("preserves text-editing keys until a suggestion is active", async () => {
+    const { user, input } = setup();
+    await user.type(input, "Chicago");
+    await screen.findByRole("listbox");
+    expect(fireEvent.keyDown(input, { key: "Home" })).toBe(true);
+    expect(input).not.toHaveAttribute("aria-activedescendant");
+    expect(fireEvent.keyDown(input, { key: "ArrowDown", ctrlKey: true })).toBe(true);
+    expect(input).not.toHaveAttribute("aria-activedescendant");
+    await user.keyboard("{ArrowDown}{End}");
+    const activeId = input.getAttribute("aria-activedescendant")!;
+    expect(document.getElementById(activeId)).toHaveTextContent("Chicago Heights");
+    await user.keyboard("{Enter}");
+    expect(input).toHaveFocus();
+  });
+  it("returns keyboard focus to the input after clearing an address", async () => {
+    const { user, input } = setup(suggestions[0]);
+    const clear = screen.getByRole("button", { name: "Clear current location" });
+    clear.focus();
+    await user.keyboard("{Enter}");
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue("");
+    expect(input).toHaveAccessibleDescription(/Enter at least three characters/);
+  });
 });

@@ -3,7 +3,7 @@
 A trip-planning assessment for property-carrying drivers: route a trip, schedule
 duty changes, and generate a Driver's Daily Log for each calendar day.
 
-**Current stage: Phase 6 — daily log sheets and PNG/PDF downloads.** The React
+**Current stage: Phase 7 — accessibility, responsive layout, and interface polish.** The React
 app submits validated trip details to the stateless Django API and displays the
 route, required stops, summary, chronological itinerary, and filled daily logs.
 Each calendar-day sheet has a drawn SVG duty graph and PNG/PDF downloads; the
@@ -160,11 +160,14 @@ the original event ID: selecting one opens the **full event** at its original AP
 start coordinate and time. This is explicit on those rows; no new driving position
 is invented for a midnight continuation.
 
-Selecting an itinerary event brings its map popup into view. Map selection opens
+Selecting an itinerary event opens its map popup. Pointer selection also brings
+the map into view; keyboard selection keeps focus and the itinerary in view so
+the next event remains easy to reach. Map selection opens
 the itinerary tab and scrolls only its internal list to the corresponding event.
 Hovering or focusing a row highlights the map marker; map hover highlights the
 row. Driving events get a temporary start marker while selected or hovered.
-Map markers support Enter and Space for the same selection as a pointer click.
+Map markers have names containing their event, location, and arrival time, and
+support Enter and Space for the same selection as a pointer click.
 Tabs support Left/Right arrows, Home, End, and Tab. A successful new plan clears
 selection and returns to Summary; edited or updating results are labeled stale.
 
@@ -172,6 +175,55 @@ Phase 5 visual verification: plan the sample trip, check both tabs, select a res
 that continues after midnight, then select Pickup on the map. Repeat at a mobile
 viewport and in dark mode. Local review screenshots are saved in the ignored
 `.tools/phase5-preview` directory; attach these to the phase PR if desired.
+
+## Accessibility and responsive behavior
+
+The planner uses a single column below 1024 px, keeping the form, map, and results
+readable on tablets as well as phones. Phone controls have 44 px touch heights;
+address fields use 16 px text and the cycle slider has a 28 px hit area. The
+original paper log can scroll within its own preview while page content reflows.
+Its text-details disclosure supplies readable full content at narrow widths.
+
+- The first keyboard link skips to a focusable main landmark. All result tabs
+  support Left/Right arrows, Home/End, and Tab, with a visible focus outline.
+- Address fields describe suggestion keyboard controls and announce available
+  options. Home/End keep their text-editing behavior until an option is active;
+  modified arrow keys remain native editing keys. Clearing an address returns
+  focus to that input. Sample loading and location swaps are announced.
+- Invalid submission focuses a named error summary. Each summary button focuses
+  its invalid field; optional details open before a hidden field receives focus.
+  Inline errors remain associated with the corresponding controls.
+- Completed requests focus the success notice or API error banner. If someone
+  moves focus elsewhere while waiting, the completion preserves that choice.
+  Log downloads apply the same behavior to their completion status or error.
+- Form and itinerary scroll areas leave room for sticky controls and day headings.
+  Light/dark themes use stronger text and input-border contrast; map popups and
+  all status labels provide text alongside their colors. Reduced-motion styles
+  and Framer Motion's user preference handling remain active.
+- Unknown paths show a titled 404 page with a direct link back to the planner.
+
+`frontend/src/accessibility.test.tsx` runs pinned axe-core checks on the form,
+open autocomplete, failed validation, all three result views, and the 404 page.
+Interaction tests cover focus restoration, hidden fields, native editing keys,
+and keeping keyboard itinerary selection in view. axe-core is development-only;
+it is not shipped in the application bundle. jsdom cannot evaluate rendered
+contrast or reflow, so its color-contrast rule is disabled and those are checked
+in the real browser instead. These checks are not a screen-reader certification;
+manual NVDA/VoiceOver review remains useful before a wider production release.
+
+For local review, test at 320, 390, 768, 1024 px and the normal desktop viewport:
+submit an empty form, use its error links, load the sample, plan with Enter,
+navigate every tab, select an itinerary event with Enter, and select a map marker
+with Space. Check dark mode, the log pager, Enlarge/Fit to width, text details,
+and a changed-plan download state. Ignored review screenshots are saved under
+`.tools/phase7-preview` for the phase PR.
+
+Design references:
+[W3C non-text contrast](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html),
+[W3C reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html), and the
+[ARIA combobox pattern](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/).
+
+## Daily log preview and downloads
 
 **Log Sheets** adds a date picker and Previous/Next buttons. Choose a day, then
 use **PNG** or **PDF** for that sheet; **Download all (N)** creates one PDF in

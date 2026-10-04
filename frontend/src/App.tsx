@@ -38,6 +38,9 @@ export default function App() {
   }, []);
   const controller = useRef<AbortController | null>(null);
   const results = useRef<HTMLDivElement | null>(null);
+  const readyNotice = useRef<HTMLDivElement>(null);
+  const errorNotice = useRef<HTMLDivElement>(null);
+  const focusAfterPlanning = useRef(false);
   const showMobileResults = () => {
     if (window.matchMedia("(max-width: 767px)").matches)
       results.current?.scrollIntoView({
@@ -65,11 +68,40 @@ export default function App() {
     },
     onError: showMobileResults,
   });
+  useEffect(() => {
+    if (!mutation.isPending) return;
+    // If someone navigates elsewhere while waiting, keep their chosen focus.
+    const moved = (event: FocusEvent) => {
+      if (
+        event.target instanceof HTMLElement &&
+        event.target !== document.body &&
+        !document.getElementById("trip-form")?.contains(event.target)
+      )
+        focusAfterPlanning.current = false;
+    };
+    document.addEventListener("focusin", moved);
+    return () => document.removeEventListener("focusin", moved);
+  }, [mutation.isPending]);
+  useEffect(() => {
+    if (mutation.isPending || !focusAfterPlanning.current) return;
+    const notice = mutation.isError
+      ? errorNotice.current
+      : mutation.isSuccess
+        ? readyNotice.current
+        : null;
+    if (notice) {
+      notice.focus({ preventScroll: true });
+      focusAfterPlanning.current = false;
+    }
+  }, [mutation.isPending, mutation.isError, mutation.isSuccess, plan]);
   const edit = () => {
     if (plan) setDirty(true);
     if (mutation.isError) mutation.reset();
   };
   const isHome = window.location.pathname === "/";
+  useEffect(() => {
+    document.title = isHome ? "Wayline · ELD Trip Planner" : "Page not found · Wayline";
+  }, [isHome]);
 
   return (
     <MotionConfig reducedMotion="user">
@@ -110,7 +142,7 @@ export default function App() {
         </div>
       </header>
       {!isHome ? (
-        <main id="main-content" className="not-found">
+        <main id="main-content" className="not-found" tabIndex={-1}>
           <span className="empty-route-icon">
             <Route size={30} />
           </span>
@@ -125,11 +157,11 @@ export default function App() {
           </Button>
         </main>
       ) : (
-        <main id="main-content" className="workspace">
+        <main id="main-content" className="workspace" tabIndex={-1}>
           <div className="workspace-heading">
             <div>
               <div className="breadcrumb">
-                WORKSPACE <span>/</span> TRIP PLANNER
+                WORKSPACE <span aria-hidden="true">/</span> TRIP PLANNER
               </div>
               <h1>Make every mile count.</h1>
               <p>Your route, required stops, and driver logs. All planned ahead.</p>
@@ -142,7 +174,10 @@ export default function App() {
           <div className="planner-layout">
             <TripForm
               pending={mutation.isPending}
-              onSubmit={(payload) => mutation.mutate(payload)}
+              onSubmit={(payload) => {
+                focusAfterPlanning.current = true;
+                mutation.mutate(payload);
+              }}
               onEdit={edit}
             />
             <div className="results-column" ref={results}>
@@ -151,10 +186,16 @@ export default function App() {
                 pending={mutation.isPending}
               />
               {mutation.isError && (
-                <div className="api-error" role="alert">
+                <div
+                  className="api-error"
+                  role="alert"
+                  tabIndex={-1}
+                  ref={errorNotice}
+                  aria-labelledby="api-error-title"
+                >
                   <AlertTriangle size={20} />
                   <div>
-                    <strong>We couldn’t plan this trip</strong>
+                    <strong id="api-error-title">We couldn’t plan this trip</strong>
                     <p>
                       {mutation.error instanceof ApiError
                         ? mutation.error.message
@@ -177,10 +218,16 @@ export default function App() {
                 </div>
               )}
               {plan && !mutation.isPending && !mutation.isError && !dirty && (
-                <div className="plan-ready" role="status">
+                <div
+                  className="plan-ready"
+                  role="status"
+                  tabIndex={-1}
+                  ref={readyNotice}
+                  aria-labelledby="plan-ready-title"
+                >
                   <CheckCircle2 size={18} />
                   <div>
-                    <strong>Your route is ready</strong>
+                    <strong id="plan-ready-title">Your route is ready</strong>
                     <span>
                       {plan.route.total_miles.toLocaleString("en-US", {
                         maximumFractionDigits: 0,
@@ -225,15 +272,16 @@ export default function App() {
                   selection={selection}
                   hoveredId={hoveredId}
                   onHover={setHoveredId}
-                  onSelect={(id) => {
+                  onSelect={(id, revealMap) => {
                     setSelection({ id, source: "itinerary" });
-                    mapView.current?.scrollIntoView({
-                      behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
-                        .matches
-                        ? "instant"
-                        : "smooth",
-                      block: "start",
-                    });
+                    if (revealMap)
+                      mapView.current?.scrollIntoView({
+                        behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
+                          .matches
+                          ? "instant"
+                          : "smooth",
+                        block: "start",
+                      });
                   }}
                   dirty={dirty}
                   pending={mutation.isPending}

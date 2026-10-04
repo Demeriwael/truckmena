@@ -17,8 +17,9 @@ services:
         value: config.production_settings
       - key: DJANGO_DEBUG
         value: "false"
+      # Supply a 50+ character secret; Render's generator produces only 44.
       - key: DJANGO_SECRET_KEY
-        generateValue: true
+        sync: false
       - key: DJANGO_TRUST_PROXY
         value: "true"
       - key: ORS_API_KEY

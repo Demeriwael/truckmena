@@ -17,7 +17,9 @@ that the name is available. Never paste a secret into a Git command or a chat.
    `render.yaml` at the repository root. Name the Blueprint **truckmena**.
 3. Review the proposed **truckmena-api** web service. Confirm the plan is **Free**
    before applying; this Blueprint creates no paid resources or database.
-4. Supply the two prompted variables:
+4. Supply the three prompted variables:
+   - `DJANGO_SECRET_KEY`: generate it using the commands below, then paste the
+     complete value into Render's secret field without quotes.
    - `ORS_API_KEY`: your existing ORS key, entered only in Render's secret field.
    - `CORS_ALLOWED_ORIGINS`: if the Vercel project already exists, enter its exact
      HTTPS production origin. Otherwise enter `https://deployment-pending.invalid`
@@ -29,6 +31,29 @@ that the name is available. Never paste a secret into a Git command or a chat.
 ```json
 { "status": "ok", "service": "eld-trip-planner" }
 ```
+
+Generate `DJANGO_SECRET_KEY` once with Python's cryptographically secure generator.
+From the repository root in Windows PowerShell, run this command unchanged; it
+copies the new value to your clipboard without printing it:
+
+```powershell
+./.venv/Scripts/python.exe -c "import secrets; print(secrets.token_urlsafe(64))" | Set-Clipboard
+```
+
+In bash/zsh, this equivalent command prints the value for you to copy:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(64))"
+```
+
+Both commands generate an 86-character value. Paste it only into Render's
+`DJANGO_SECRET_KEY` value field. Render's built-in generator creates a base64
+encoding of 32 random bytes, which is 44 characters long; Django's deployment
+check requires at least 50 characters. The Blueprint therefore prompts for this
+secret with `sync: false`. The build continues to reject inadequate secrets.
+For an existing service, edit its environment variable manually and choose
+**Save, rebuild, and deploy**; Blueprint updates do not prompt for `sync: false`
+values or replace an existing secret.
 
 The Blueprint supplies these settings:
 
@@ -42,7 +67,7 @@ The Blueprint supplies these settings:
 | Auto deploy              | `checksPass`, deploy after the linked branch's CI succeeds             |
 | `DJANGO_SETTINGS_MODULE` | `config.production_settings`                                           |
 | `DJANGO_DEBUG`           | `false`                                                                |
-| `DJANGO_SECRET_KEY`      | Generated securely by Render                                           |
+| `DJANGO_SECRET_KEY`      | Owner-generated 86-character secret using the command above            |
 | `DJANGO_TRUST_PROXY`     | `true`, for Render's managed HTTPS ingress                             |
 | `NOMINATIM_ENABLED`      | `false`                                                                |
 | `ORS_API_KEY`            | Owner-supplied server secret; never a frontend variable                |
@@ -56,8 +81,8 @@ are rejected by production settings.
 
 If you prefer manual service creation, choose **New → Web Service**, select the
 same repository and branch, set language **Python 3**, root **backend**, plan
-**Free**, and enter the table's commands and variables. Generate a secret key
-using Render's dashboard generator. Set the health path and auto-deploy behavior
+**Free**, and enter the table's commands and variables. Generate the secret key
+using the Python command above. Set the health path and auto-deploy behavior
 under the service's settings. Do not run migrations for this stateless app.
 
 ## 2. Create the Vercel frontend
@@ -174,6 +199,7 @@ runs on Windows; local development uses Django's `runserver`.
 
 | Symptom                               | Check                                                                                                  |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Build fails with `security.W009`      | Replace `DJANGO_SECRET_KEY` with the Python-generated value above, then **Save, rebuild, and deploy**  |
 | Frontend build says API origin absent | Set Production `VITE_API_BASE_URL`, then redeploy; confirm root directory is `frontend`                |
 | Health returns 400                    | Check the actual hostname and `RENDER_EXTERNAL_HOSTNAME` / custom `DJANGO_ALLOWED_HOSTS`               |
 | Redirect loop                         | Verify the trusted proxy's forwarded HTTPS header and `DJANGO_TRUST_PROXY`                             |
@@ -189,4 +215,5 @@ Official references:
 [Render web-service ingress](https://render.com/tutorials/web-service-vs-static-site/web-services),
 [Vite on Vercel](https://vercel.com/docs/frameworks/frontend/vite),
 [Vercel Node versions](https://vercel.com/docs/functions/runtimes/node-js/node-js-versions),
-[Django deployment checklist](https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/).
+[Django deployment checklist](https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/),
+[Django secret-key check](https://docs.djangoproject.com/en/5.2/ref/checks/#security).

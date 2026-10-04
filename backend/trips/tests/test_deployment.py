@@ -1,5 +1,6 @@
 """Load real production settings in fresh, environment-isolated interpreters."""
 
+import base64
 import json
 import os
 import secrets
@@ -74,7 +75,7 @@ def deployment_env(tmp_path):
         **environment,
         "DJANGO_SETTINGS_MODULE": "config.production_settings",
         "DJANGO_DEBUG": "false",
-        "DJANGO_SECRET_KEY": secrets.token_urlsafe(50),
+        "DJANGO_SECRET_KEY": secrets.token_urlsafe(64),
         "RENDER_EXTERNAL_HOSTNAME": "api.example.invalid",
         "CORS_ALLOWED_ORIGINS": "https://frontend.example.invalid",
         "DJANGO_TRUST_PROXY": "true",
@@ -117,6 +118,23 @@ def test_production_health_https_headers_and_exact_cors(deployment_env, origin):
     assert response["unknown_host"] == 400
     assert response["static"] == 200
     assert response["static_body"] == "static probe"
+
+
+def test_deployment_check_rejects_render_generated_secret(deployment_env):
+    # Render's 256-bit generator has ample randomness but only 44 characters.
+    render_secret = base64.b64encode(secrets.token_bytes(32)).decode("ascii")
+    assert len(render_secret) == 44
+    result = production_process(
+        {**deployment_env, "DJANGO_SECRET_KEY": render_secret},
+        """
+import io
+from django.core.management import call_command
+call_command("check", deploy=True, fail_level="WARNING", stdout=io.StringIO())
+""",
+    )
+    assert result.returncode != 0
+    assert "security.W009" in result.stderr
+    assert render_secret not in result.stdout + result.stderr
 
 
 @pytest.mark.parametrize(

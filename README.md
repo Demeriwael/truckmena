@@ -3,7 +3,7 @@
 A trip-planning assessment for property-carrying drivers: route a trip, schedule
 duty changes, and generate a Driver's Daily Log for each calendar day.
 
-**Current stage: Phase 8 — deployment configuration and final verification.** The React
+**Current stage: Phase 8 — live demo and final submission verification.** The React
 app submits validated trip details to the stateless Django API and displays the
 route, required stops, summary, chronological itinerary, and filled daily logs.
 Each calendar-day sheet has a drawn SVG duty graph and PNG/PDF downloads; the
@@ -33,10 +33,27 @@ The frontend never receives the routing API key. The HOS engine has no network,
 framework, or database dependencies. Django has no database, session, or user
 authentication apps; no migrations are needed.
 
-Hosting configuration is ready for owner dashboard setup. Live deployment URLs
-and the final `v1.0.0` release remain pending live verification. Follow the
-[exact Render/Vercel deployment steps](docs/DEPLOYMENT.md) and the
+## Live demo
+
+| Service        | Public URL                                                     |
+| -------------- | -------------------------------------------------------------- |
+| Frontend       | [Wayline trip planner](https://truckmena-frontend.vercel.app/) |
+| Backend health | [API health](https://truckmena-api.onrender.com/api/health)    |
+
+Choose **Use sample trip**, then **Plan trip**. Browse **Summary**, **Itinerary**,
+and **Log Sheets**; **Download all (N)** creates a PDF with one page per day.
+The free backend can sleep, so the first plan may show a server wake-up message.
+
+Live verification on **October 4, 2026** confirmed backend health, the exact
+frontend CORS origin, real ORS truck routing, and address autocomplete. The owner
+confirmed private-window access. The exported October 4–9 trip PDF was inspected:
+all six pages were complete and readable, each day totaled 24.00 hours, and the
+34-hour restart and subsequent recap reset were consistent.
+
+See the [deployment verification record](docs/DEPLOYMENT.md#verification-record)
+for results and remaining checks, and the
 [reviewer walkthrough and four-minute Loom outline](docs/SUBMISSION.md).
+The final `v1.0.0` tag remains pending the owner release checkpoint.
 
 ## Repository layout
 
@@ -730,7 +747,7 @@ verified before-checkpoint and ends with reviewed paths, passing checks,
 Conventional Commits, and a verified push. After the initial setup commit,
 changes use short-lived phase branches and pull requests into `main`.
 
-## Submission documentation to complete
+## Submission documentation
 
 Setup, the API contract, HOS rules, and assumptions are documented above.
 [Deployment instructions](docs/DEPLOYMENT.md) cover dashboard values, exact
@@ -748,12 +765,13 @@ README or submission form after live verification):
 | Daily log       | Duty graph, 24.00-hour totals, remarks, and restart recap          |
 
 Phase 7 browser QA screenshots remain in ignored `.tools/phase7-preview`.
-Public frontend/backend URLs, a Loom recording, live ORS verification, and the
-final release tag are owner submission steps; configuration files alone do not
-confirm them.
+Public deployment links and live ORS/PDF results are recorded above. The Loom
+talk track is ready in [submission notes](docs/SUBMISSION.md); recording and the
+final release tag are owner submission steps.
 
-Phase 8 local verification: **112 frontend tests pass**, and **204 backend tests
-pass**. One Gunicorn application-load check is skipped on Windows and runs in
+Latest local application verification, including the Render secret-key fix:
+**112 frontend tests pass**, and **205 backend tests pass**. One Gunicorn
+application-load check is skipped on Windows and runs in
 Linux CI. Production settings are exercised in fresh interpreters: health,
 static-file serving, HTTPS redirects/headers, explicit hosts, exact CORS origins,
 and startup rejection for invalid configuration. Cold-start tests cover retry

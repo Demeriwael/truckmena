@@ -3,9 +3,9 @@
 A trip-planning assessment for property-carrying drivers: route a trip, schedule
 duty changes, and generate a Driver's Daily Log for each calendar day.
 
-**Current stage: Phase 8 — live demo and final submission verification.** The React
-app submits validated trip details to the stateless Django API and displays the
-route, required stops, summary, chronological itinerary, and filled daily logs.
+The React app submits validated trip details to the stateless Django API and
+displays the route, required stops, summary, chronological itinerary, and filled
+daily logs.
 Each calendar-day sheet has a drawn SVG duty graph and PNG/PDF downloads; the
 whole trip downloads as one PDF with a page for every day.
 
@@ -45,15 +45,16 @@ and **Log Sheets**; **Download all (N)** creates a PDF with one page per day.
 The free backend can sleep, so the first plan may show a server wake-up message.
 
 Live verification on **October 4, 2026** confirmed backend health, the exact
-frontend CORS origin, real ORS truck routing, and address autocomplete. The owner
-confirmed private-window access. The exported October 4–9 trip PDF was inspected:
-all six pages were complete and readable, each day totaled 24.00 hours, and the
-34-hour restart and subsequent recap reset were consistent.
+frontend CORS origin, real ORS truck routing, and address autocomplete. Browser
+checks covered both themes at desktop and mobile widths, keyboard controls,
+itinerary/map synchronization, and a refreshed 404 page. The owner confirmed
+private-window access. PNG and single-day/whole-trip PDF exports were inspected:
+the October 4–9 PDF had six complete, readable pages, each day totaled 24.00 hours,
+and the 34-hour restart and subsequent recap reset were consistent.
 
 See the [deployment verification record](docs/DEPLOYMENT.md#verification-record)
-for results and remaining checks, and the
+for evidence and the owner-waived timed idle-start check, and the
 [reviewer walkthrough and four-minute Loom outline](docs/SUBMISSION.md).
-The final `v1.0.0` tag remains pending the owner release checkpoint.
 
 ## Repository layout
 
@@ -765,9 +766,10 @@ README or submission form after live verification):
 | Daily log       | Duty graph, 24.00-hour totals, remarks, and restart recap          |
 
 Phase 7 browser QA screenshots remain in ignored `.tools/phase7-preview`.
-Public deployment links and live ORS/PDF results are recorded above. The Loom
-talk track is ready in [submission notes](docs/SUBMISSION.md); recording and the
-final release tag are owner submission steps.
+Public deployment links and live browser/export results are recorded above. The
+Loom talk track is ready in [submission notes](docs/SUBMISSION.md); recording and the
+annotated `v1.0.0` release tag are owner submission steps after the final
+documentation merge and green CI.
 
 Latest local application verification, including the Render secret-key fix:
 **112 frontend tests pass**, and **205 backend tests pass**. One Gunicorn

@@ -171,40 +171,46 @@ Perform these checks using the actual production domains:
   never include `ORS_API_KEY`, and never call ORS directly.
 
 Keep public frontend/API URLs and the Loom recording with the submission.
-Record the results below and complete remaining checks before tagging the final
-release.
+Record check results and any intentionally skipped checks before tagging the
+final release.
 
 ### Verification record
 
 Checked on **October 4, 2026**, following the deployment-secret fix:
 
-| Check                   | Result / evidence                                                                                                                                                   |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Backend health and CORS | HTTP 200; expected service JSON; `Access-Control-Allow-Origin` exactly matches the production frontend                                                              |
-| Real ORS truck route    | Sample API request returned `provider: ors`, `profile: driving-hgv`, two route legs, and no fallback warnings                                                       |
-| Sample schedule         | 2,398.817 provider miles; 43.65 driving hours; five log days for the checked-in October 3, 08:00 departure; full-day coverage and contiguous events verified        |
-| Address autocomplete    | Submitted Chicago search returned five suggestions                                                                                                                  |
-| Private-window access   | Owner confirmed that the deployed planner works in a private window                                                                                                 |
-| Browser PDF exports     | Owner supplied a single-day PDF and the complete October 4–9 six-page PDF; every page was visually inspected with no visible clipping; daily totals are 24.00 hours |
-| Restart display         | Full-trip PDF shows a 34-hour restart across October 7–8 and the recap reset on completion                                                                          |
-| Main branch CI          | Repository hygiene, frontend quality/tests/build, and backend quality/tests passed for merge `fa7a195`                                                              |
+| Check                            | Result / evidence                                                                                                                                                              |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Backend health and CORS          | HTTP 200; expected service JSON; `Access-Control-Allow-Origin` exactly matches the production frontend                                                                         |
+| Real ORS truck route             | Sample API request returned `provider: ors`, `profile: driving-hgv`, two route legs, and no fallback warnings                                                                  |
+| Sample schedule                  | 2,398.817 provider miles; 43.65 driving hours; five log days for the checked-in October 3, 08:00 departure; full-day coverage and contiguous events verified                   |
+| Address autocomplete             | Submitted Chicago search returned five suggestions                                                                                                                             |
+| Private-window access            | Owner confirmed that the deployed planner works in a private window                                                                                                            |
+| Browser PDF exports              | Owner supplied a single-day PDF and the complete October 4–9 six-page PDF; every page was visually inspected with no visible clipping; daily totals are 24.00 hours            |
+| Browser PNG export               | The app reported a completed download; the owner supplied the opened October 4 PNG, and its complete header, graph, remarks, totals, recap, and footer were visually inspected |
+| Restart display                  | Full-trip PDF shows a 34-hour restart across October 7–8 and the recap reset on completion                                                                                     |
+| Deployed sample planner          | Browser completed the ORS sample plan, showing 2,398.8 miles, six daily logs, and 11 positioned stops                                                                          |
+| Desktop/mobile themes            | Both themes inspected at 1440×1000 and 390×844; page widths matched their scroll widths, with no horizontal page overflow                                                      |
+| Keyboard and map synchronization | Arrow keys switched results tabs with visible focus; Enter selected the Dallas pickup event, opened its map popup, and marked it selected                                      |
+| Mobile log controls              | Day selection, fit/enlarge controls, and keyboard scrolling of the enlarged sheet worked                                                                                       |
+| Refreshed 404                    | `/missing-page` displayed the application 404 after refresh; Back to trip planner returned to the working planner                                                              |
+| Browser requests and console     | Observed four health requests followed by one planning POST to the Render API; no direct ORS request or console error/warning appeared                                         |
+| Environment-file hygiene         | Owner's tracked-file check listed only `backend/.env.example` and `frontend/.env.example`; both real `.env` paths matched ignore rules                                         |
+| Main branch CI                   | Repository hygiene, frontend quality/tests/build, and backend quality/tests passed for documentation merge `26782ef`                                                           |
+| Controlled idle-start check      | Not performed: the owner explicitly waived the timed 20-minute idle test after confirming that the deployed app works                                                          |
 
 The API sample and browser export use different departure times, so five versus
 six calendar-day sheets is expected. This record preserves the results of those
 specific checks; it does not replace verification after future deployments.
 
-Remaining owner checks on the deployed frontend:
+The browser checks above passed on a cellular connection. Local simulated
+wake-up and cancellation checks passed earlier, and the deployed browser
+completed planning after health retries. Those observations do not establish a
+controlled 20-minute idle-start result; that test was skipped at the owner's
+request and is not reported as passed.
 
-- Open `/missing-page` and refresh; confirm the application 404 screen.
-- Check desktop and approximately 390px layouts in both themes, keyboard focus,
-  PNG export, and the browser console/network requests listed above.
-- Leave the frontend and backend unused for at least 20 minutes, then plan a
-  sample trip and confirm that a sleeping backend wakes and planning completes.
-  Local simulated wake-up and cancellation checks have passed; a controlled
-  deployed idle-start check has not yet been recorded.
-
-The final owner release checkpoint also verifies tracked environment files and
-creates the annotated `v1.0.0` tag. Record a Loom video using the
+The final owner release checkpoint synchronizes the final documentation merge,
+confirms green CI and a clean `main`, and creates the annotated `v1.0.0` tag.
+Record a Loom video using the
 [submission outline](SUBMISSION.md) if required by the submission form.
 
 ## Cold starts and keeping the demo ready

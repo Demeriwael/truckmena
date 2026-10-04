@@ -109,4 +109,7 @@ jobs:
       - name: Test
         run: npm run test -- --run
       - name: Build
+        env:
+          # Contract-only build; this is not a live deployment endpoint.
+          VITE_API_BASE_URL: https://api.example.invalid
         run: npm run build

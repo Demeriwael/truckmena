@@ -3,7 +3,7 @@
 A trip-planning assessment for property-carrying drivers: route a trip, schedule
 duty changes, and generate a Driver's Daily Log for each calendar day.
 
-**Current stage: Phase 7 — accessibility, responsive layout, and interface polish.** The React
+**Current stage: Phase 8 — deployment configuration and final verification.** The React
 app submits validated trip details to the stateless Django API and displays the
 route, required stops, summary, chronological itinerary, and filled daily logs.
 Each calendar-day sheet has a drawn SVG duty graph and PNG/PDF downloads; the
@@ -15,12 +15,12 @@ whole trip downloads as one PDF with a page for every day.
 - Frontend: React 18, Vite, TypeScript, Tailwind CSS, and Leaflet.
 - Routing: server-side OpenRouteService, with provider caching and documented
   fallback behavior.
-- Deployment: frontend on Vercel; backend on Render or Railway.
+- Deployment: frontend on Vercel; backend on Render (configuration included).
 
 ```mermaid
 flowchart LR
-    Driver[Driver] --> UI[React frontend]
-    UI --> API[Django REST API]
+    Driver[Driver] --> UI[React frontend / Vercel]
+    UI -->|HTTPS / exact CORS origin| API[Django REST API / Render]
     API --> Routing[Routing and geocoding services]
     Routing --> Cache[Local-memory cache]
     Routing --> ORS[OpenRouteService]
@@ -32,6 +32,11 @@ flowchart LR
 The frontend never receives the routing API key. The HOS engine has no network,
 framework, or database dependencies. Django has no database, session, or user
 authentication apps; no migrations are needed.
+
+Hosting configuration is ready for owner dashboard setup. Live deployment URLs
+and the final `v1.0.0` release remain pending live verification. Follow the
+[exact Render/Vercel deployment steps](docs/DEPLOYMENT.md) and the
+[reviewer walkthrough and four-minute Loom outline](docs/SUBMISSION.md).
 
 ## Repository layout
 
@@ -284,8 +289,13 @@ npm.cmd --prefix frontend run typecheck
 # Run network-isolated interaction and API contract tests.
 npm.cmd --prefix frontend run test -- --run
 
+# Set a local API origin for this production-build check only.
+$previousApiOrigin = $env:VITE_API_BASE_URL
+$env:VITE_API_BASE_URL = 'http://127.0.0.1:8000'
+
 # Produce the production build in the ignored frontend/dist directory.
 npm.cmd --prefix frontend run build
+$env:VITE_API_BASE_URL = $previousApiOrigin
 
 # Check frontend dependency advisories.
 npm.cmd audit --prefix frontend
@@ -722,12 +732,34 @@ changes use short-lived phase branches and pull requests into `main`.
 
 ## Submission documentation to complete
 
-- Application setup and sample-trip walkthrough.
-- API contract and provider failure behavior.
-- Screenshots: desktop planner, mobile planner, and daily log.
-- Vercel and Render/Railway deployment steps and free-tier wake-up behavior.
-- A 3–5 minute Loom talk track: sample trip, HOS engine, log rendering, code
-  structure, Git workflow, and trade-offs.
+Setup, the API contract, HOS rules, and assumptions are documented above.
+[Deployment instructions](docs/DEPLOYMENT.md) cover dashboard values, exact
+origins, production settings, wake-up behavior, and live smoke checks.
+[Submission notes](docs/SUBMISSION.md) provide the sample walkthrough, trade-offs,
+and a timed 3–5 minute Loom talk track.
+
+Screenshot placeholders for the final submission (attach images to the GitHub
+README or submission form after live verification):
+
+| Image           | What to capture                                                    |
+| --------------- | ------------------------------------------------------------------ |
+| Desktop planner | Sample route, provider label/warnings, summary, and all stop types |
+| Mobile planner  | 390px viewport, usable form/results, and dark theme                |
+| Daily log       | Duty graph, 24.00-hour totals, remarks, and restart recap          |
+
+Phase 7 browser QA screenshots remain in ignored `.tools/phase7-preview`.
+Public frontend/backend URLs, a Loom recording, live ORS verification, and the
+final release tag are owner submission steps; configuration files alone do not
+confirm them.
+
+Phase 8 local verification: **112 frontend tests pass**, and **204 backend tests
+pass**. One Gunicorn application-load check is skipped on Windows and runs in
+Linux CI. Production settings are exercised in fresh interpreters: health,
+static-file serving, HTTPS redirects/headers, explicit hosts, exact CORS origins,
+and startup rejection for invalid configuration. Cold-start tests cover retry
+deadlines, cancellation, and a single planning POST; a local production preview
+also exercised a simulated wake-up followed by the real Django sample request.
+Missing API origins and origins containing `/api` correctly fail frontend builds.
 
 ## Tooling references
 

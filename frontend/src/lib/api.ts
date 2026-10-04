@@ -1,4 +1,4 @@
-import type { z } from "zod";
+import { z } from "zod";
 import {
   suggestionsSchema,
   tripPlanSchema,
@@ -6,9 +6,14 @@ import {
   type TripRequest,
 } from "./contracts";
 
-const configuredBase = (import.meta.env.VITE_API_BASE_URL ?? "")
-  .trim()
-  .replace(/\/$/, "");
+const apiBase = () =>
+  (import.meta.env.VITE_API_BASE_URL ?? "").trim().replace(/\/$/, "");
+
+export type PlanningPhase = "connecting" | "planning";
+const healthSchema = z.object({
+  status: z.literal("ok"),
+  service: z.literal("eld-trip-planner"),
+});
 
 export class ApiError extends Error {
   constructor(
@@ -51,7 +56,7 @@ async function request<T>(
   if (init.signal?.aborted) controller.abort();
   const timer = window.setTimeout(abort, timeoutMs);
   try {
-    const response = await fetch(`${configuredBase}${path}`, {
+    const response = await fetch(`${apiBase()}${path}`, {
       ...init,
       signal: controller.signal,
       credentials: "omit",
@@ -107,14 +112,70 @@ export function autocomplete(query: string, signal: AbortSignal) {
   );
 }
 
-export function planTrip(payload: TripRequest, signal: AbortSignal) {
+function pause(ms: number, signal: AbortSignal): Promise<void> {
+  signal.throwIfAborted();
+  return new Promise((resolve, reject) => {
+    const abort = () => {
+      window.clearTimeout(timer);
+      signal.removeEventListener("abort", abort);
+      reject(signal.reason);
+    };
+    const timer = window.setTimeout(() => {
+      signal.removeEventListener("abort", abort);
+      resolve();
+    }, ms);
+    signal.addEventListener("abort", abort, { once: true });
+  });
+}
+
+async function waitForService(signal: AbortSignal) {
+  // Wake a hosted service using an idempotent GET, never by replaying the plan.
+  const deadline = Date.now() + 90000;
+  while (Date.now() < deadline) {
+    signal.throwIfAborted();
+    try {
+      await request(
+        "/api/health",
+        healthSchema,
+        { signal, cache: "no-store" },
+        Math.min(10000, deadline - Date.now()),
+      );
+      return;
+    } catch (error) {
+      if (signal.aborted) throw error;
+      if (error instanceof ApiError && error.status > 0 && error.status < 500)
+        throw error;
+    }
+    const remaining = deadline - Date.now();
+    if (remaining > 0) await pause(Math.min(2000, remaining), signal);
+  }
+  throw new ApiError(
+    "The server is taking too long to wake up. Please try again shortly.",
+    0,
+  );
+}
+
+export async function planTrip(
+  payload: TripRequest,
+  signal: AbortSignal,
+  onPhase?: (phase: PlanningPhase) => void,
+) {
+  // Validate before any network work, including a hosted-service health check.
+  const body = JSON.stringify(tripRequestSchema.parse(payload));
+  signal.throwIfAborted();
+  if (apiBase()) {
+    onPhase?.("connecting");
+    await waitForService(signal);
+  }
+  signal.throwIfAborted();
+  onPhase?.("planning");
   return request(
     "/api/trips/plan",
     tripPlanSchema,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(tripRequestSchema.parse(payload)),
+      body,
       signal,
     },
     65000,

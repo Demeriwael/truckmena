@@ -11,7 +11,7 @@ import {
   Sun,
 } from "lucide-react";
 import { MotionConfig } from "framer-motion";
-import { ApiError, planTrip } from "@/lib/api";
+import { ApiError, planTrip, type PlanningPhase } from "@/lib/api";
 import type { TripPlan, TripRequest } from "@/lib/contracts";
 import { useTheme } from "@/hooks/use-theme";
 import { TripForm } from "@/components/trip-form";
@@ -28,6 +28,7 @@ export default function App() {
   const { dark, toggle } = useTheme();
   const [plan, setPlan] = useState<TripPlan | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [planningPhase, setPlanningPhase] = useState<PlanningPhase>("planning");
   const [tab, setTab] = useState<ResultTab>("summary");
   const [selection, setSelection] = useState<EventSelection | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -55,7 +56,7 @@ export default function App() {
     mutationFn: (payload: TripRequest) => {
       controller.current?.abort();
       controller.current = new AbortController();
-      return planTrip(payload, controller.current.signal);
+      return planTrip(payload, controller.current.signal, setPlanningPhase);
     },
     retry: false,
     onSuccess: (result) => {
@@ -182,8 +183,9 @@ export default function App() {
             />
             <div className="results-column" ref={results}>
               <PlanningProgress
-                key={mutation.submittedAt}
+                key={`${mutation.submittedAt}-${planningPhase}`}
                 pending={mutation.isPending}
+                phase={planningPhase}
               />
               {mutation.isError && (
                 <div

@@ -3,7 +3,11 @@ import { ApiError, autocomplete, planTrip } from "./api";
 import { sample, toTripRequest } from "./trip-form";
 import fixture from "@/test/fixtures/trip.json";
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+  vi.useRealTimers();
+});
 
 describe("safe API requests", () => {
   it("posts only validated trip inputs and checks the returned contract", async () => {
@@ -119,5 +123,100 @@ describe("safe API requests", () => {
     await vi.advanceTimersByTimeAsync(15000);
     await result;
     vi.useRealTimers();
+  });
+});
+
+describe("hosted service readiness", () => {
+  const healthy = () =>
+    new Response(JSON.stringify({ status: "ok", service: "eld-trip-planner" }));
+
+  it("checks the configured origin, then submits one plan without cookies", async () => {
+    vi.stubEnv("VITE_API_BASE_URL", " https://api.example.invalid/ ");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(healthy())
+      .mockResolvedValueOnce(new Response(JSON.stringify(fixture)));
+    vi.stubGlobal("fetch", fetchMock);
+    const phases = vi.fn();
+    await planTrip(toTripRequest(sample), new AbortController().signal, phases);
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "https://api.example.invalid/api/health",
+      "https://api.example.invalid/api/trips/plan",
+    ]);
+    expect(fetchMock.mock.calls[0]![1]).toEqual(
+      expect.objectContaining({
+        cache: "no-store",
+        credentials: "omit",
+      }),
+    );
+    expect(phases.mock.calls).toEqual([["connecting"], ["planning"]]);
+  });
+
+  it("retries unavailable or loading health responses without replaying the plan", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("VITE_API_BASE_URL", "https://api.example.invalid");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("host booting", { status: 503 }))
+      .mockResolvedValueOnce(new Response("<html>loading</html>"))
+      .mockResolvedValueOnce(healthy())
+      .mockResolvedValueOnce(new Response(JSON.stringify(fixture)));
+    vi.stubGlobal("fetch", fetchMock);
+    const plan = planTrip(toTripRequest(sample), new AbortController().signal);
+    await vi.advanceTimersByTimeAsync(4000);
+    await expect(plan).resolves.toHaveProperty("summary.log_days", 1);
+    expect(
+      fetchMock.mock.calls.filter(([, init]) => init.method === "POST"),
+    ).toHaveLength(1);
+  });
+
+  it("bounds cold-start waiting and never sends a plan to an unavailable service", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("VITE_API_BASE_URL", "https://api.example.invalid");
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 503 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = expect(
+      planTrip(toTripRequest(sample), new AbortController().signal),
+    ).rejects.toThrow("taking too long to wake up");
+    await vi.advanceTimersByTimeAsync(90000);
+    await result;
+    expect(fetchMock.mock.calls.every(([, init]) => init.method !== "POST")).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("cancels the retry delay immediately when the caller aborts", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("VITE_API_BASE_URL", "https://api.example.invalid");
+    const controller = new AbortController();
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 503 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = expect(
+      planTrip(toTripRequest(sample), controller.signal),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    await vi.advanceTimersByTimeAsync(1000);
+    controller.abort();
+    await result;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("does not retry configuration errors or failed plan submissions", async () => {
+    vi.stubEnv("VITE_API_BASE_URL", "https://api.example.invalid");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("{}", { status: 404 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(
+      planTrip(toTripRequest(sample), new AbortController().signal),
+    ).rejects.toThrow(ApiError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    fetchMock
+      .mockReset()
+      .mockResolvedValueOnce(healthy())
+      .mockResolvedValueOnce(new Response("{}", { status: 502 }));
+    await expect(
+      planTrip(toTripRequest(sample), new AbortController().signal),
+    ).rejects.toThrow("planning service is unavailable");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

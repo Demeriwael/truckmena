@@ -14,8 +14,10 @@ outside the planned trip.
 The [backend health URL](https://truckmena-api.onrender.com/api/health) returns
 the service status without making provider requests. The free backend can take
 time to wake before the first plan. Live ORS routing, autocomplete, private-window
-access, and the six-page PDF were checked on October 4, 2026; see the
-[verification record and remaining checks](DEPLOYMENT.md#verification-record).
+access, desktop/mobile themes, keyboard/map controls, refreshed 404 navigation,
+and PNG/PDF exports were checked on October 4, 2026. The owner waived the
+controlled timed idle-start test; see the
+[verification record](DEPLOYMENT.md#verification-record).
 
 ## Submission links
 
@@ -73,16 +75,18 @@ than narrating every stop. Finish by opening the downloaded PDF.
 
 - Merge the documentation PR only after CI is green, synchronize local `main`, and
   remove the completed branch through the Git checkpoints in this chat.
-- Complete the remaining deployed UI and idle-start checks in
-  [the verification record](DEPLOYMENT.md#verification-record). ORS routing,
-  autocomplete, private-window access, and the multi-day PDF are recorded there.
-- Confirm that tracked environment files consist only of the two `.env.example`
-  files using the final Git checkpoint. Never paste credentials with the output.
+- Keep the [verification record](DEPLOYMENT.md#verification-record) with the
+  submission. The controlled timed idle-start test was skipped at the owner's
+  request; completed browser, API, and export checks are recorded separately.
+- The owner confirmed that only the two `.env.example` files are tracked and
+  both real `.env` paths are ignored. Preserve that hygiene in later changes;
+  never paste credentials with command output.
 - Share the production frontend and health URLs above, the repository URL, and
   the Loom recording URL if required. The talk track is ready; the owner records
   and shares the video.
 - Replace the screenshot placeholders in README if newer deployed screenshots
   are desired. Existing QA images are local, ignored artifacts.
 - Create and push the annotated `v1.0.0` tag through the final owner checkpoint
-  after live verification. The backend and frontend milestones remain at
+  after this documentation is merged and CI is green. The backend and frontend
+  milestones remain at
   `v0.1.0` and `v0.2.0`; do not move those tags.

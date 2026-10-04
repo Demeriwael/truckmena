@@ -54,4 +54,31 @@ describe("trip form", () => {
     expect(screen.getByRole("combobox", { name: "Current location" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Planning your trip…" })).toBeDisabled();
   });
+  it("focuses a validation summary and lets its links focus the invalid fields", async () => {
+    const { user, submit } = setup();
+    await user.click(screen.getByRole("button", { name: "Plan trip" }));
+    const summary = await screen.findByRole("alert", {
+      name: "Check your trip details",
+    });
+    expect(summary).toHaveFocus();
+    await user.click(
+      screen.getByRole("button", { name: /^Pickup location: Enter an address/ }),
+    );
+    expect(screen.getByRole("combobox", { name: "Pickup location" })).toHaveFocus();
+    expect(submit).not.toHaveBeenCalled();
+  });
+  it("reveals and focuses an invalid optional field that was collapsed", async () => {
+    const { user, submit } = setup();
+    await user.click(screen.getByRole("button", { name: "Use sample trip" }));
+    const details = screen.getByRole("button", { name: /Trip details Optional/ });
+    await user.click(details);
+    await user.clear(screen.getByRole("textbox", { name: "Carrier name" }));
+    await user.click(details);
+    await user.click(screen.getByRole("button", { name: "Plan trip" }));
+    await screen.findByRole("alert", { name: "Check your trip details" });
+    expect(details).toHaveAttribute("aria-expanded", "true");
+    await user.click(screen.getByRole("button", { name: /^Carrier name:/ }));
+    expect(screen.getByRole("textbox", { name: "Carrier name" })).toHaveFocus();
+    expect(submit).not.toHaveBeenCalled();
+  });
 });

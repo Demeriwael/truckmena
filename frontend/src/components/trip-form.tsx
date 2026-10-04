@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Controller, useForm, type FieldPath } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -32,12 +32,18 @@ interface TripFormProps {
 
 export function TripForm({ pending, onSubmit, onEdit }: TripFormProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [invalidSubmissions, setInvalidSubmissions] = useState(0);
+  const [focusField, setFocusField] = useState<FieldPath<TripFormValues> | null>(null);
+  const [announcement, setAnnouncement] = useState("");
+  const errorSummary = useRef<HTMLDivElement>(null);
+  const focusedSubmission = useRef(0);
   const {
     control,
     register,
     watch,
     getValues,
     setValue,
+    setFocus,
     reset,
     handleSubmit,
     formState: { errors },
@@ -45,7 +51,80 @@ export function TripForm({ pending, onSubmit, onEdit }: TripFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: defaults,
     mode: "onTouched",
+    shouldFocusError: false,
   });
+  useEffect(() => {
+    if (!invalidSubmissions) focusedSubmission.current = 0;
+    if (invalidSubmissions > focusedSubmission.current && errorSummary.current) {
+      errorSummary.current.focus();
+      focusedSubmission.current = invalidSubmissions;
+    }
+  }, [invalidSubmissions, errors]);
+  useEffect(() => {
+    if (focusField) {
+      setFocus(focusField);
+      setFocusField(null);
+    }
+  }, [focusField, setFocus]);
+  const issues = (
+    [
+      {
+        name: "current_location",
+        label: "Current location",
+        message: errors.current_location?.label?.message,
+      },
+      {
+        name: "pickup_location",
+        label: "Pickup location",
+        message: errors.pickup_location?.label?.message,
+      },
+      {
+        name: "dropoff_location",
+        label: "Delivery location",
+        message: errors.dropoff_location?.label?.message,
+      },
+      {
+        name: "cycle_used_hours",
+        label: "Cycle hours already used",
+        message: errors.cycle_used_hours?.message,
+      },
+      {
+        name: "departure",
+        label: "Departure date & time",
+        message: errors.departure?.message,
+      },
+      {
+        name: "driver_name",
+        label: "Driver name",
+        message: errors.driver_name?.message,
+      },
+      {
+        name: "carrier.name",
+        label: "Carrier name",
+        message: errors.carrier?.name?.message,
+      },
+      {
+        name: "carrier.address",
+        label: "Main office address",
+        message: errors.carrier?.address?.message,
+      },
+      {
+        name: "carrier.home_terminal_address",
+        label: "Home terminal address",
+        message: errors.carrier?.home_terminal_address?.message,
+      },
+      {
+        name: "vehicle",
+        label: "Truck / trailer numbers",
+        message: errors.vehicle?.message,
+      },
+      {
+        name: "shipping_doc",
+        label: "Shipping document / commodity",
+        message: errors.shipping_doc?.message,
+      },
+    ] satisfies { name: FieldPath<TripFormValues>; label: string; message?: string }[]
+  ).filter((issue) => issue.message);
   const used = watch("cycle_used_hours");
   const safeUsed = Number.isFinite(used) ? Math.min(70, Math.max(0, used)) : 0;
   const remaining = Math.max(0, 70 - safeUsed);
@@ -56,6 +135,7 @@ export function TripForm({ pending, onSubmit, onEdit }: TripFormProps) {
     });
     setValue("dropoff_location", current, { shouldValidate: true });
     onEdit();
+    setAnnouncement("Start and delivery locations swapped. Pickup is unchanged.");
   };
   const textField = (
     name: FieldPath<TripFormValues>,
@@ -74,7 +154,11 @@ export function TripForm({ pending, onSubmit, onEdit }: TripFormProps) {
         {...register(name)}
         maxLength={maxLength}
         aria-invalid={Boolean(error)}
-        aria-describedby={error ? `${name}-error` : undefined}
+        aria-describedby={
+          [name === "departure" ? "departure-help" : "", error ? `${name}-error` : ""]
+            .filter(Boolean)
+            .join(" ") || undefined
+        }
       />
       {error && (
         <p className="field-error" id={`${name}-error`}>
@@ -111,9 +195,48 @@ export function TripForm({ pending, onSubmit, onEdit }: TripFormProps) {
               fieldErrors.shipping_doc
             )
               setDetailsOpen(true);
+            setInvalidSubmissions((count) => count + 1);
           },
         )}
       >
+        {invalidSubmissions > 0 && issues.length > 0 && (
+          <div
+            className="form-error-summary"
+            role="alert"
+            tabIndex={-1}
+            ref={errorSummary}
+            aria-labelledby="form-errors-title"
+          >
+            <h3 id="form-errors-title">Check your trip details</h3>
+            <p>Fix these fields, then plan your trip again.</p>
+            <ul>
+              {issues.map(({ name, label, message }) => (
+                <li key={name}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (
+                        ![
+                          "current_location",
+                          "pickup_location",
+                          "dropoff_location",
+                          "cycle_used_hours",
+                        ].includes(name)
+                      )
+                        setDetailsOpen(true);
+                      setFocusField(name);
+                    }}
+                  >
+                    {label}: {message}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <p className="sr-only" role="status" aria-atomic="true">
+          {announcement}
+        </p>
         <fieldset disabled={pending} className="form-fieldset">
           <div className="form-section route-section">
             <div className="section-heading">
@@ -127,6 +250,10 @@ export function TripForm({ pending, onSubmit, onEdit }: TripFormProps) {
                 className="sample-button"
                 onClick={() => {
                   reset(structuredClone(sample));
+                  setInvalidSubmissions(0);
+                  setAnnouncement(
+                    "Sample trip loaded: Chicago to Dallas to Los Angeles, with 34 cycle hours used.",
+                  );
                   onEdit();
                 }}
               >
@@ -218,7 +345,8 @@ export function TripForm({ pending, onSubmit, onEdit }: TripFormProps) {
                   step={0.25}
                   {...register("cycle_used_hours", { valueAsNumber: true })}
                   aria-invalid={Boolean(errors.cycle_used_hours)}
-                  aria-describedby="cycle-help cycle-error"
+                  aria-required="true"
+                  aria-describedby={`cycle-help${errors.cycle_used_hours ? " cycle-error" : ""}`}
                 />
                 <span>hrs</span>
               </div>
@@ -231,8 +359,10 @@ export function TripForm({ pending, onSubmit, onEdit }: TripFormProps) {
               step={0.25}
               value={safeUsed}
               aria-label="Cycle hours already used slider"
+              aria-valuetext={`${Number(safeUsed.toFixed(2))} hours used, ${Number(remaining.toFixed(2))} hours available before a restart`}
+              aria-describedby="cycle-help"
               style={{
-                background: `linear-gradient(to right, var(--primary) ${(safeUsed / 70) * 100}%, var(--border) ${(safeUsed / 70) * 100}%)`,
+                backgroundImage: `linear-gradient(to right, var(--primary) ${(safeUsed / 70) * 100}%, var(--input-border) ${(safeUsed / 70) * 100}%)`,
               }}
               onChange={(event) =>
                 setValue("cycle_used_hours", Number(event.target.value), {
@@ -265,8 +395,10 @@ export function TripForm({ pending, onSubmit, onEdit }: TripFormProps) {
               onClick={() => setDetailsOpen(!detailsOpen)}
             >
               <span>
-                <span className="step-number">3</span>
-                <strong>Trip details</strong>
+                <span className="step-number" aria-hidden="true">
+                  3
+                </span>
+                <strong>Trip details</strong>{" "}
                 <span className="quiet-tag">Optional</span>
               </span>
               <ChevronDown className={detailsOpen ? "rotated" : ""} size={17} />
@@ -282,7 +414,7 @@ export function TripForm({ pending, onSubmit, onEdit }: TripFormProps) {
                 errors.departure?.message,
                 "datetime-local",
               )}
-              <p className="field-hint">
+              <p className="field-hint" id="departure-help">
                 Leave blank to depart now in the start location’s time zone. A chosen
                 time uses your device’s time zone.
               </p>

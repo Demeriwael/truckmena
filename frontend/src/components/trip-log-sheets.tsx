@@ -28,6 +28,27 @@ export function TripLogSheets({
   const [complete, setComplete] = useState("");
   const controller = useRef<AbortController | null>(null);
   const viewport = useRef<HTMLDivElement>(null);
+  const announcement = useRef<HTMLDivElement>(null);
+  const errorNotice = useRef<HTMLParagraphElement>(null);
+  const focusAfterDownload = useRef(false);
+  const downloading = !!progress;
+  useEffect(() => {
+    if (!downloading) return;
+    const moved = (event: FocusEvent) => {
+      if (event.target instanceof HTMLElement && event.target !== document.body)
+        focusAfterDownload.current = false;
+    };
+    document.addEventListener("focusin", moved);
+    return () => document.removeEventListener("focusin", moved);
+  }, [downloading]);
+  useEffect(() => {
+    if (downloading || !focusAfterDownload.current) return;
+    const notice = error ? errorNotice.current : complete ? announcement.current : null;
+    if (notice) {
+      notice.focus({ preventScroll: true });
+      focusAfterDownload.current = false;
+    }
+  }, [downloading, error, complete]);
   useEffect(() => () => controller.current?.abort(), []);
   useEffect(() => {
     if (disabled && controller.current) {
@@ -50,6 +71,7 @@ export function TripLogSheets({
   async function download(format: LogDownload, all = false) {
     if (disabled || controller.current) return;
     const abort = new AbortController();
+    focusAfterDownload.current = true;
     controller.current = abort;
     setError(false);
     setComplete("");
@@ -184,6 +206,9 @@ export function TripLogSheets({
       <div
         className="log-announcement"
         role="status"
+        aria-label="Log download status"
+        ref={announcement}
+        tabIndex={-1}
         aria-live="polite"
         aria-atomic="true"
       >
@@ -198,7 +223,7 @@ export function TripLogSheets({
         )}
       </div>
       {error && (
-        <p className="log-export-error" role="alert">
+        <p className="log-export-error" role="alert" ref={errorNotice} tabIndex={-1}>
           We couldn’t create the download. Try again.
         </p>
       )}

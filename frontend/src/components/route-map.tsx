@@ -24,6 +24,12 @@ import { Button } from "./ui/button";
 function MapViewport({ plan }: { plan: TripPlan | null }) {
   const map = useMap();
   useEffect(() => {
+    const container = map.getContainer();
+    container.setAttribute("role", "region");
+    container.setAttribute("aria-label", "Route map");
+    container.setAttribute("aria-describedby", "map-keyboard-help");
+  }, [map]);
+  useEffect(() => {
     if (plan)
       map.fitBounds(latLngBounds(plan.route.geometry), {
         padding: [45, 55],
@@ -119,9 +125,25 @@ function EventMarker({
     // Keep the icon DOM stable during pointer input. Replacing it on mouseover
     // can remove the pressed element before mouseup and swallow marker clicks.
     const element = ref.current?.getElement();
+    element?.setAttribute(
+      "aria-label",
+      `${eventLabels[event.type]}: ${event.place}, ${eventTime(event.start)}`,
+    );
+    element?.setAttribute("aria-pressed", String(selection?.id === event.id));
     element?.classList.toggle("marker-selected", selection?.id === event.id);
     element?.classList.toggle("marker-hovered", hoveredId === event.id);
-  }, [event.id, hoveredId, selection, icon]);
+  }, [event.id, event.type, event.place, event.start, hoveredId, selection, icon]);
+  useEffect(() => {
+    const element = ref.current?.getElement();
+    const focus = () => onHover(event.id);
+    const blur = () => onHover(null);
+    element?.addEventListener("focus", focus);
+    element?.addEventListener("blur", blur);
+    return () => {
+      element?.removeEventListener("focus", focus);
+      element?.removeEventListener("blur", blur);
+    };
+  }, [event.id, icon, onHover]);
   useEffect(() => {
     if (selection?.id === event.id) {
       if (selection.source === "itinerary")
@@ -222,6 +244,10 @@ export function RouteMap({
           {plan ? `${stops.length} stops positioned` : "Ready when you are"}
         </span>
       </div>
+      <p id="map-keyboard-help" className="sr-only">
+        Use arrow keys to pan and plus or minus to zoom. Select a marker with Enter or
+        Space. The itinerary and map stops also list every stop as text.
+      </p>
       <div className="map-canvas">
         <MapContainer
           center={[38.5, -97.5]}
@@ -375,6 +401,9 @@ export function RouteMap({
                 onClick={() => onSelect(event.id)}
                 onMouseEnter={() => onHover(event.id)}
                 onMouseLeave={() => onHover(null)}
+                onFocus={() => onHover(event.id)}
+                onBlur={() => onHover(null)}
+                aria-pressed={selection?.id === event.id}
               >
                 <span className={`stop-symbol marker-${event.type}`}>
                   {eventSymbols[event.type]}

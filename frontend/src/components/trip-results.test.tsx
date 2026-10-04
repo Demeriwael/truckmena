@@ -140,7 +140,7 @@ describe("itinerary map links", () => {
     await user.hover(row);
     expect(onHover).toHaveBeenLastCalledWith(plan.events[2]!.id);
     await user.click(row);
-    expect(onSelect).toHaveBeenCalledWith(plan.events[2]!.id);
+    expect(onSelect).toHaveBeenCalledWith(plan.events[2]!.id, true);
     rerender(
       <TripItinerary
         plan={plan}
@@ -189,6 +189,6 @@ describe("itinerary map links", () => {
       within(continuation).getByText(/Continued from previous day/),
     ).toHaveTextContent("Map shows the full event from its original start.");
     await userEvent.setup().click(continuation);
-    expect(onSelect).toHaveBeenCalledWith("rest");
+    expect(onSelect).toHaveBeenCalledWith("rest", true);
   });
 });

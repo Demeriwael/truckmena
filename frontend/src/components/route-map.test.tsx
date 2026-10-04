@@ -14,14 +14,16 @@ const mocks = vi.hoisted(() => ({
   closePopup: vi.fn(),
 }));
 vi.mock("react-leaflet", () => ({
-  MapContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  MapContainer: ({ children }: { children: ReactNode }) => (
+    <div data-testid="mock-map">{children}</div>
+  ),
   TileLayer: () => null,
   Polyline: () => null,
   Popup: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   useMap: () => ({
     panTo: mocks.panTo,
     fitBounds: mocks.fitBounds,
-    getContainer: () => document.body,
+    getContainer: () => document.querySelector('[data-testid="mock-map"]')!,
     invalidateSize: () => {},
     setView: () => {},
   }),
@@ -55,7 +57,7 @@ vi.mock("react-leaflet", () => ({
         <button
           ref={element}
           type="button"
-          aria-label={title}
+          title={title}
           data-icon={icon.options.html}
           onClick={eventHandlers.click}
           onMouseEnter={eventHandlers.mouseover}
@@ -120,7 +122,11 @@ describe("map event synchronization", () => {
         onHover={onHover}
       />,
     );
-    const marker = screen.getByRole("button", { name: "Pickup: Pickup" });
+    const marker = screen.getByRole("button", { name: /^Pickup: Pickup,/ });
+    expect(marker).toHaveAccessibleName("Pickup: Pickup, Oct 3, 10:00 AM · UTC-05:00");
+    expect(
+      screen.getByRole("region", { name: "Route map" }),
+    ).toHaveAccessibleDescription(/arrow keys to pan/);
     fireEvent.mouseEnter(marker);
     expect(onHover).toHaveBeenLastCalledWith("event-0002");
     fireEvent.click(marker);
@@ -140,7 +146,7 @@ describe("map event synchronization", () => {
         onHover={() => {}}
       />,
     );
-    expect(screen.getByRole("button", { name: "Driving: Current" })).toHaveClass(
+    expect(screen.getByRole("button", { name: /^Driving: Current,/ })).toHaveClass(
       "marker-selected",
     );
     rerender(
@@ -155,9 +161,9 @@ describe("map event synchronization", () => {
       />,
     );
     expect(
-      screen.getByRole("button", { name: "Driving: Current" }),
+      screen.getByRole("button", { name: /^Driving: Current,/ }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Driving: Pickup" })).toHaveClass(
+    expect(screen.getByRole("button", { name: /^Driving: Pickup,/ })).toHaveClass(
       "marker-hovered",
     );
     expect(screen.getByText("3 stops positioned")).toBeInTheDocument();
@@ -177,7 +183,7 @@ describe("map event synchronization", () => {
           onHover={() => {}}
         />,
       );
-      const marker = screen.getByRole("button", { name: "Pickup: Pickup" });
+      const marker = screen.getByRole("button", { name: /^Pickup: Pickup,/ });
       expect(fireEvent.keyDown(marker, { key })).toBe(false);
       expect(onSelect).toHaveBeenCalledExactlyOnceWith("event-0002");
     },

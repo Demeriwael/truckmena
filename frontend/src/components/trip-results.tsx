@@ -49,7 +49,7 @@ export function TripResults({
   onTabChange: (tab: ResultTab) => void;
   selection: EventSelection | null;
   hoveredId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, revealMap: boolean) => void;
   onHover: (id: string | null) => void;
   dirty: boolean;
   pending: boolean;

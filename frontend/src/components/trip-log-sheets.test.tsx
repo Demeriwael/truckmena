@@ -42,6 +42,7 @@ describe("log pager and exports", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "Downloaded 10/04/2026 as PNG.",
     );
+    expect(screen.getByRole("status")).toHaveFocus();
     await user.selectOptions(
       screen.getByRole("combobox", { name: "Choose log day" }),
       "0",
@@ -91,6 +92,7 @@ describe("log pager and exports", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "We couldn’t create the download. Try again.",
     );
+    expect(screen.getByRole("alert")).toHaveFocus();
     expect(screen.queryByText("Private upstream error")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Download PDF/ }));
     await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
@@ -112,5 +114,25 @@ describe("log pager and exports", () => {
     unmount();
     expect(signal.aborted).toBe(true);
     await act(async () => finish());
+  });
+  it("keeps focus on a control chosen while a download is being prepared", async () => {
+    let finish: () => void = () => undefined;
+    download.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    render(<TripLogSheets plan={multi} disabled={false} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /Download all/ }));
+    await waitFor(() => expect(download).toHaveBeenCalled());
+    await user.click(screen.getByRole("button", { name: "Enlarge" }));
+    const fit = screen.getByRole("button", { name: "Fit to width" });
+    await act(async () => finish());
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Downloaded 2 sheets in one PDF.",
+    );
+    expect(fit).toHaveFocus();
   });
 });

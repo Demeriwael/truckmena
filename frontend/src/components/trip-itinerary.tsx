@@ -21,7 +21,7 @@ export function TripItinerary({
   plan: TripPlan;
   selection: EventSelection | null;
   hoveredId: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, revealMap: boolean) => void;
   onHover: (id: string | null) => void;
 }) {
   const days = useMemo(() => itineraryDays(plan.events), [plan.events]);
@@ -72,7 +72,7 @@ export function TripItinerary({
                         data-event-id={event.id}
                         aria-pressed={active}
                         aria-label={`Show ${continued ? "full " : ""}${eventLabels[event.type]} event on map: ${event.place}, ${calendarDay(day.date)} ${clockTime(start)}`}
-                        onClick={() => onSelect(event.id)}
+                        onClick={(input) => onSelect(event.id, input.detail !== 0)}
                         onMouseEnter={() => onHover(event.id)}
                         onMouseLeave={() => onHover(null)}
                         onFocus={() => onHover(event.id)}

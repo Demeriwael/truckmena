@@ -2,13 +2,20 @@
   "name": "eld-trip-planner-tooling",
   "version": "0.0.0",
   "private": true,
-  "description": "Repository formatting tools for the ELD Trip Planner monorepo",
+  "description": "Development and quality tools for Wayline",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13.0 <23"
   },
   "scripts": {
-    "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "setup": "node scripts/project.mjs setup",
+    "dev": "node scripts/project.mjs dev",
+    "test": "node scripts/project.mjs test",
+    "test:tooling": "node --test scripts/project.test.mjs",
+    "check": "node scripts/project.mjs check",
+    "build": "node scripts/project.mjs build",
+    "build:local": "node scripts/project.mjs build:local",
+    "format": "prettier --write . \"!**/{.git,.venv,.tools,.cache,node_modules,dist,build,__pycache__,.pytest_cache,.hypothesis,.ruff_cache,.mypy_cache,.tox,.nox,.vite,.next,.vercel,coverage,htmlcov}/**\" \"!backend/{staticfiles,media}/**\"",
+    "format:check": "prettier --check . \"!**/{.git,.venv,.tools,.cache,node_modules,dist,build,__pycache__,.pytest_cache,.hypothesis,.ruff_cache,.mypy_cache,.tox,.nox,.vite,.next,.vercel,coverage,htmlcov}/**\" \"!backend/{staticfiles,media}/**\""
   },
   "devDependencies": {
     "prettier": "3.6.2"

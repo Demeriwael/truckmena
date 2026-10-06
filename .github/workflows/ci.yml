@@ -50,6 +50,8 @@ jobs:
       - name: Install frontend tools when the frontend exists
         if: steps.apps.outputs.frontend == 'true'
         run: npm ci --prefix frontend
+      - name: Test cross-platform development tooling
+        run: npm run test:tooling
       - name: Check formatting, file hygiene, and secrets
         run: python -m pre_commit run --all-files --hook-stage manual
 
@@ -107,7 +109,7 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
       - name: Test
-        run: npm run test -- --run
+        run: npm run test -- --run --maxWorkers=1
       - name: Build
         env:
           # Contract-only build; this is not a live deployment endpoint.

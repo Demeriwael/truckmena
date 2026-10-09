@@ -33,7 +33,7 @@ Render's free backend sleeps when idle; the first plan can take about a minute t
 
 ## Walkthrough
 
-*pending*
+_pending_
 
 ## Features
 

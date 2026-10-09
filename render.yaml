@@ -17,7 +17,7 @@ services:
         value: config.production_settings
       - key: DJANGO_DEBUG
         value: "false"
-      # Supply a 50+ character secret; Render's generator produces only 44.
+      # Supply a long, random secret that passes Django deployment checks.
       - key: DJANGO_SECRET_KEY
         sync: false
       - key: DJANGO_TRUST_PROXY

@@ -37,7 +37,7 @@ jobs:
         run: |
           python -m pip install -r requirements-dev.txt
           npm ci
-      - name: Detect applications introduced by subsequent phases
+      - name: Detect backend and frontend manifests
         id: apps
         shell: bash
         run: |

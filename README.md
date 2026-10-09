@@ -33,11 +33,7 @@ Render's free backend sleeps when idle; the first plan can take about a minute t
 
 ## Walkthrough
 
-**Loom walkthrough:** recording pending.
-
-<!-- Loom link slot: replace the line above with the public recording link. -->
-
-Use the [four-minute recording outline](docs/SUBMISSION.md#4-minute-loom-talk-track).
+*pending*
 
 ## Features
 

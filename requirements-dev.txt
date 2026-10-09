@@ -1,4 +1,4 @@
-# Repository tooling. Application dependencies are added in later phases.
+# Repository quality tools; backend dependencies are in backend/requirements-dev.txt.
 black==26.3.0
 pre-commit==4.6.2
 ruff==0.16.8

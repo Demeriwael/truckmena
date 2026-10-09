@@ -74,7 +74,7 @@ TIME_ZONE = "UTC"
 USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-# There are no static assets yet. collectstatic creates this root for deployment.
+# collectstatic writes deployment assets to this directory.
 WHITENOISE_USE_FINDERS = DEBUG
 DATA_UPLOAD_MAX_MEMORY_SIZE = 32 * 1024
 SECURE_CONTENT_TYPE_NOSNIFF = True

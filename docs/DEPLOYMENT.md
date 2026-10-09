@@ -1,8 +1,7 @@
 # Deploy Wayline with Render and Vercel
 
-Deploy after the `chore/deploy` pull request is merged and `main` CI is green.
-Use the repository's `main` branch for both services. These steps create an
-assessment/demo deployment on Render's Free service and Vercel; no database,
+Use the repository's `main` branch for both services and deploy changes after CI
+passes. These steps create a demo deployment on Render's Free service and Vercel; no database,
 disk, migrations, or user accounts are needed by the application.
 
 The service names below are project labels. Hosting platforms choose the actual
@@ -11,18 +10,23 @@ that the name is available. Never paste a secret into a Git command or a chat.
 
 ## Current production deployment
 
-| Setting                               | Current value                                               |
-| ------------------------------------- | ----------------------------------------------------------- |
-| Frontend                              | [Wayline](https://truckmena-frontend.vercel.app/)           |
-| Backend health                        | [API health](https://truckmena-api.onrender.com/api/health) |
-| Vercel project / root / preset        | `truckmena-frontend` / `frontend` / Vite                    |
-| Render service / root                 | `truckmena-api` / `backend`                                 |
-| Vercel Production `VITE_API_BASE_URL` | `https://truckmena-api.onrender.com`                        |
-| Render `CORS_ALLOWED_ORIGINS`         | `https://truckmena-frontend.vercel.app`                     |
+| Setting                                      | Current value                                               |
+| -------------------------------------------- | ----------------------------------------------------------- |
+| Frontend                                     | [Wayline](https://wayline.demeri.dev/)                      |
+| Default Vercel domain                        | [Vercel alias](https://truckmena-frontend.vercel.app/)      |
+| Backend health                               | [API health](https://truckmena-api.onrender.com/api/health) |
+| Vercel project / root / preset               | `truckmena-frontend` / `frontend` / Vite                    |
+| Render service / root                        | `truckmena-api` / `backend`                                 |
+| Vercel Production `VITE_API_BASE_URL`        | `https://truckmena-api.onrender.com`                        |
+| Render `CORS_ALLOWED_ORIGINS` primary origin | `https://wayline.demeri.dev`                                |
 
 These two environment values are public origins. The ORS and Django credentials
 are supplied through Render's secret environment fields. Local `.env` files are
 not uploaded to either host.
+
+Include the default Vercel origin in `CORS_ALLOWED_ORIGINS` only if it should also
+be able to call the API. This table identifies the current primary frontend;
+the dated verification record below identifies the domain used for those checks.
 
 ## 1. Create the Render backend
 
@@ -48,24 +52,24 @@ not uploaded to either host.
 ```
 
 Generate `DJANGO_SECRET_KEY` once with Python's cryptographically secure generator.
-From the repository root in Windows PowerShell, run this command unchanged; it
-copies the new value to your clipboard without printing it:
+After local setup, run this command from the repository root in Bash; it prints
+the value for you to copy directly into Render's secret field:
+
+```bash
+.venv/bin/python -c "import secrets; print(secrets.token_urlsafe(64))"
+```
+
+Windows PowerShell alternative, which copies the value without displaying it:
 
 ```powershell
 ./.venv/Scripts/python.exe -c "import secrets; print(secrets.token_urlsafe(64))" | Set-Clipboard
 ```
 
-In bash/zsh, this equivalent command prints the value for you to copy:
-
-```bash
-python -c "import secrets; print(secrets.token_urlsafe(64))"
-```
-
 Both commands generate an 86-character value. Paste it only into Render's
-`DJANGO_SECRET_KEY` value field. Render's built-in generator creates a base64
-encoding of 32 random bytes, which is 44 characters long; Django's deployment
-check requires at least 50 characters. The Blueprint therefore prompts for this
-secret with `sync: false`. The build continues to reject inadequate secrets.
+`DJANGO_SECRET_KEY` value field. Django's deployment check requires at least 50
+characters and adequate randomness. The Blueprint prompts for this secret with
+`sync: false`; the build rejects inadequate secrets. The Python command avoids
+depending on a hosting platform's default generated-key length.
 For an existing service, edit its environment variable manually and choose
 **Save, rebuild, and deploy**; Blueprint updates do not prompt for `sync: false`
 values or replace an existing secret.
@@ -75,18 +79,18 @@ The Blueprint supplies these settings:
 | Setting                  | Value / purpose                                                        |
 | ------------------------ | ---------------------------------------------------------------------- |
 | Branch / root directory  | `main` / `backend`                                                     |
-| Runtime                  | Python `3.12.14`, matching the locally verified runtime                |
+| Runtime                  | Python `3.12.14`, pinned in `render.yaml`                              |
 | Build command            | `bash build.sh`                                                        |
 | Start command            | `python -m gunicorn config.wsgi:application --config gunicorn.conf.py` |
 | Health check             | `/api/health`                                                          |
 | Auto deploy              | `checksPass`, deploy after the linked branch's CI succeeds             |
 | `DJANGO_SETTINGS_MODULE` | `config.production_settings`                                           |
 | `DJANGO_DEBUG`           | `false`                                                                |
-| `DJANGO_SECRET_KEY`      | Owner-generated 86-character secret using the command above            |
+| `DJANGO_SECRET_KEY`      | An 86-character secret generated using the command above               |
 | `DJANGO_TRUST_PROXY`     | `true`, for Render's managed HTTPS ingress                             |
 | `NOMINATIM_ENABLED`      | `false`                                                                |
-| `ORS_API_KEY`            | Owner-supplied server secret; never a frontend variable                |
-| `CORS_ALLOWED_ORIGINS`   | Exact Vercel HTTPS origin(s), comma-separated, no paths or final slash |
+| `ORS_API_KEY`            | Server-only provider secret; never a frontend variable                 |
+| `CORS_ALLOWED_ORIGINS`   | Exact frontend HTTPS origins, comma-separated, no paths or final slash |
 
 `RENDER_EXTERNAL_HOSTNAME` is supplied by Render and becomes an allowed host.
 If you add a custom backend domain, also set `DJANGO_ALLOWED_HOSTS` to that
@@ -127,6 +131,11 @@ does not update already built JavaScript.
 The SPA rewrite serves `index.html` for deep links so the application can display
 its own 404 screen. Django runs separately; Vercel has no API proxy or ORS key.
 
+For a custom frontend domain, add it under the Vercel project's domain settings
+and apply the DNS records shown there. The current primary domain is
+`wayline.demeri.dev`. Use its exact HTTPS origin in the backend CORS settings;
+changing the frontend domain does not change `VITE_API_BASE_URL`.
+
 ## 3. Connect the two origins
 
 1. In **Render → truckmena-api → Environment**, replace the temporary
@@ -146,7 +155,7 @@ preview intentionally cannot call the API.
 
 CORS controls browser access; these anonymous endpoints remain publicly
 accessible outside browsers. Their per-process throttles are appropriate for a
-small assessment demo. Production scaling requires a shared limiter/cache and
+small demo. Production scaling requires a shared limiter/cache and
 provider-capacity planning.
 
 ## 4. Verify the live deployment
@@ -171,32 +180,35 @@ Perform these checks using the actual production domains:
   never include `ORS_API_KEY`, and never call ORS directly.
 
 Keep public frontend/API URLs and the Loom recording with the submission.
-Record check results and any intentionally skipped checks before tagging the
-final release.
+Date verification results and identify any checks that were not performed.
 
-### Verification record
+## Verification record
 
-Checked on **October 4, 2026**, following the deployment-secret fix:
+### October 4, 2026 — release verification
 
-| Check                            | Result / evidence                                                                                                                                                              |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Backend health and CORS          | HTTP 200; expected service JSON; `Access-Control-Allow-Origin` exactly matches the production frontend                                                                         |
-| Real ORS truck route             | Sample API request returned `provider: ors`, `profile: driving-hgv`, two route legs, and no fallback warnings                                                                  |
-| Sample schedule                  | 2,398.817 provider miles; 43.65 driving hours; five log days for the checked-in October 3, 08:00 departure; full-day coverage and contiguous events verified                   |
-| Address autocomplete             | Submitted Chicago search returned five suggestions                                                                                                                             |
-| Private-window access            | Owner confirmed that the deployed planner works in a private window                                                                                                            |
-| Browser PDF exports              | Owner supplied a single-day PDF and the complete October 4–9 six-page PDF; every page was visually inspected with no visible clipping; daily totals are 24.00 hours            |
-| Browser PNG export               | The app reported a completed download; the owner supplied the opened October 4 PNG, and its complete header, graph, remarks, totals, recap, and footer were visually inspected |
-| Restart display                  | Full-trip PDF shows a 34-hour restart across October 7–8 and the recap reset on completion                                                                                     |
-| Deployed sample planner          | Browser completed the ORS sample plan, showing 2,398.8 miles, six daily logs, and 11 positioned stops                                                                          |
-| Desktop/mobile themes            | Both themes inspected at 1440×1000 and 390×844; page widths matched their scroll widths, with no horizontal page overflow                                                      |
-| Keyboard and map synchronization | Arrow keys switched results tabs with visible focus; Enter selected the Dallas pickup event, opened its map popup, and marked it selected                                      |
-| Mobile log controls              | Day selection, fit/enlarge controls, and keyboard scrolling of the enlarged sheet worked                                                                                       |
-| Refreshed 404                    | `/missing-page` displayed the application 404 after refresh; Back to trip planner returned to the working planner                                                              |
-| Browser requests and console     | Observed four health requests followed by one planning POST to the Render API; no direct ORS request or console error/warning appeared                                         |
-| Environment-file hygiene         | Owner's tracked-file check listed only `backend/.env.example` and `frontend/.env.example`; both real `.env` paths matched ignore rules                                         |
-| Main branch CI                   | Repository hygiene, frontend quality/tests/build, and backend quality/tests passed for documentation merge `26782ef`                                                           |
-| Controlled idle-start check      | Not performed: the owner explicitly waived the timed 20-minute idle test after confirming that the deployed app works                                                          |
+These checks used `https://truckmena-frontend.vercel.app` and the Render API,
+following the deployment-secret fix. The later custom frontend domain is not a
+claim that the full browser/export review was repeated there.
+
+| Check                            | Result / evidence                                                                                                                                                 |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend health and CORS          | HTTP 200; expected service JSON; `Access-Control-Allow-Origin` exactly matches the production frontend                                                            |
+| Real ORS truck route             | Sample API request returned `provider: ors`, `profile: driving-hgv`, two route legs, and no fallback warnings                                                     |
+| Sample schedule                  | 2,398.817 provider miles; 43.65 driving hours; five log days for the checked-in October 3, 08:00 departure; full-day coverage and contiguous events verified      |
+| Address autocomplete             | Submitted Chicago search returned five suggestions                                                                                                                |
+| Private-window access            | Reported working in a private browser window                                                                                                                      |
+| Browser PDF exports              | Supplied single-day PDF and complete October 4–9 six-page PDF were visually inspected with no visible clipping; daily totals are 24.00 hours                      |
+| Browser PNG export               | The app reported a completed download; the supplied, opened October 4 PNG was visually inspected, including its header, graph, remarks, totals, recap, and footer |
+| Restart display                  | Full-trip PDF shows a 34-hour restart across October 7–8 and the recap reset on completion                                                                        |
+| Deployed sample planner          | Browser completed the ORS sample plan, showing 2,398.8 miles, six daily logs, and 11 positioned stops                                                             |
+| Desktop/mobile themes            | Both themes inspected at 1440×1000 and 390×844; page widths matched their scroll widths, with no horizontal page overflow                                         |
+| Keyboard and map synchronization | Arrow keys switched results tabs with visible focus; Enter selected the Dallas pickup event, opened its map popup, and marked it selected                         |
+| Mobile log controls              | Day selection, fit/enlarge controls, and keyboard scrolling of the enlarged sheet worked                                                                          |
+| Refreshed 404                    | `/missing-page` displayed the application 404 after refresh; Back to trip planner returned to the working planner                                                 |
+| Browser requests and console     | Observed four health requests followed by one planning POST to the Render API; no direct ORS request or console error/warning appeared                            |
+| Environment-file hygiene         | Recorded tracked-file check listed only `backend/.env.example` and `frontend/.env.example`; both real `.env` paths matched ignore rules                           |
+| Main branch CI                   | Repository hygiene, frontend quality/tests/build, and backend quality/tests passed for documentation merge `26782ef`                                              |
+| Controlled idle-start check      | Not performed; no controlled 20-minute idle-start result is claimed                                                                                               |
 
 The API sample and browser export use different departure times, so five versus
 six calendar-day sheets is expected. This record preserves the results of those
@@ -205,22 +217,40 @@ specific checks; it does not replace verification after future deployments.
 The browser checks above passed on a cellular connection. Local simulated
 wake-up and cancellation checks passed earlier, and the deployed browser
 completed planning after health retries. Those observations do not establish a
-controlled 20-minute idle-start result; that test was skipped at the owner's
-request and is not reported as passed.
+controlled 20-minute idle-start result. That check was not performed and is not
+reported as passed.
 
-The final owner release checkpoint synchronizes the final documentation merge,
-confirms green CI and a clean `main`, and creates the annotated `v1.0.0` tag.
-Record a Loom video using the
-[submission outline](SUBMISSION.md) if required by the submission form.
+### Local verification recorded with the release
+
+The release README also recorded **112 frontend tests passing** and **205 backend
+tests passing**, with one Gunicorn application-load check skipped on Windows and
+run in Linux CI. These are historical results, not current test-count targets.
+
+Production settings were checked in fresh interpreters for health responses,
+static-file serving, HTTPS redirects/headers, explicit hosts, exact CORS origins,
+and startup rejection for invalid configuration. Cold-start tests covered retry
+deadlines, cancellation, and a single planning POST. A local production preview
+exercised simulated wake-up followed by a real Django sample request. Frontend
+builds correctly rejected missing API origins and origins containing `/api`.
+
+### Published release
+
+The annotated `v1.0.0` tag was published on **October 4, 2026**, pointing to
+`33894ced41d85d43199b3b200c13383e65dda7e8`. It identifies the submitted release;
+later documentation and tooling changes do not alter that snapshot. Preserve
+the existing `v0.1.0`, `v0.2.0`, and `v1.0.0` tags.
+
+Use the [submission outline](SUBMISSION.md) for a walkthrough recording.
 
 ## Cold starts and keeping the demo ready
 
 Render's Free web services currently sleep after 15 minutes without inbound
 traffic and usually take about one minute to restart. See
 [Render's free-service limitations](https://render.com/docs/free).
-The hosted planner first checks `/api/health`, waiting at most 90 seconds. Failed
-or incomplete health responses are retried with a 2-second gap and a 10-second
-per-attempt ceiling. The UI explains that the server may be waking up after
+The hosted planner first checks `/api/health`, waiting at most 90 seconds.
+Connection failures, server errors, and incomplete health responses are retried
+with a 2-second gap and a 10-second per-attempt ceiling; other HTTP errors stop
+the wait. The UI explains that the server may be waking up after
 12 seconds. Once ready, exactly one planning POST has its separate 65-second
 timeout; it is never automatically replayed. Unmounting cancels active requests
 and retry delays. Local Vite proxy development skips the hosted health gate.
@@ -228,7 +258,7 @@ and retry delays. Local Vite proxy development skips the hosted health gate.
 Before a demo or recording, open the actual backend `/api/health` once, wait for
 its JSON, then plan the sample. No background keep-warm polling is installed.
 For a service that must stay available, choose an always-on paid instance after
-reviewing the hosting cost. This free configuration is for assessment use.
+reviewing the hosting cost. This free configuration is for demo use.
 The in-memory cache is lost on sleep/restart/deploy, so the first route afterward
 may also need fresh provider requests.
 
@@ -241,9 +271,10 @@ proxy that overwrites that header; Render provides the managed HTTPS ingress.
 Other hosts must meet the same requirement before using these settings.
 
 HSTS lasts one hour and deliberately excludes subdomains and browser preload.
-`check --deploy` silences only `security.W005` and `security.W021` for those
+Production settings silence only `security.W005` and `security.W021` for those
 choices, plus `security.W003` because these anonymous JSON endpoints have no
-cookie/session authentication. All other deployment warnings fail the build.
+cookie/session authentication. The build's `check --deploy --fail-level WARNING`
+rejects other deployment warnings.
 Add CSRF middleware before introducing cookie-authenticated endpoints.
 
 Gunicorn uses one process, four threads, a 120-second worker timeout, and Render's
@@ -275,3 +306,8 @@ Official references:
 [Vercel Node versions](https://vercel.com/docs/functions/runtimes/node-js/node-js-versions),
 [Django deployment checklist](https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/),
 [Django secret-key check](https://docs.djangoproject.com/en/5.2/ref/checks/#security).
+
+See also [provider policies and scaling limits](PROVIDERS.md), [log/export
+assumptions](LOG_SHEETS.md), and [contributing checks](CONTRIBUTING.md).
+
+[Back to README](../README.md)

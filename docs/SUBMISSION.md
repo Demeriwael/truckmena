@@ -1,8 +1,8 @@
-# Submission and Loom outline
+# Wayline submission and walkthrough
 
 ## Reviewer walkthrough
 
-Open the [production frontend](https://truckmena-frontend.vercel.app/), choose
+Open [Wayline](https://wayline.demeri.dev/), choose
 **Use sample trip**, and press **Plan trip**.
 The cross-country sample includes coordinates to make routing easy to try.
 Confirm the provider warning if the route uses OSRM. View **Summary**, select an
@@ -13,20 +13,17 @@ outside the planned trip.
 
 The [backend health URL](https://truckmena-api.onrender.com/api/health) returns
 the service status without making provider requests. The free backend can take
-time to wake before the first plan. Live ORS routing, autocomplete, private-window
-access, desktop/mobile themes, keyboard/map controls, refreshed 404 navigation,
-and PNG/PDF exports were checked on October 4, 2026. The owner waived the
-controlled timed idle-start test; see the
-[verification record](DEPLOYMENT.md#verification-record).
+time to wake before the first plan. Dated API, browser, export, and local-check
+results are preserved in the [deployment verification record](DEPLOYMENT.md#verification-record).
 
 ## Submission links
 
-| Item           | Link / status                                                  |
-| -------------- | -------------------------------------------------------------- |
-| Frontend       | [Wayline trip planner](https://truckmena-frontend.vercel.app/) |
-| Backend health | [API health](https://truckmena-api.onrender.com/api/health)    |
-| Repository     | [GitHub repository](https://github.com/Demeriwael/truckmena)   |
-| Loom           | Owner recording; use the four-minute outline below             |
+| Item           | Link / status                                                |
+| -------------- | ------------------------------------------------------------ |
+| Frontend       | [Wayline trip planner](https://wayline.demeri.dev/)          |
+| Backend health | [API health](https://truckmena-api.onrender.com/api/health)  |
+| Repository     | [GitHub repository](https://github.com/Demeriwael/truckmena) |
+| Loom           | Recording pending; use the four-minute outline below         |
 
 ## 4-minute Loom talk track
 
@@ -37,17 +34,17 @@ controlled timed idle-start test; see the
 | 1:25–2:05 | Log Sheets, next day, Download all (N)         | Show midnight splitting, four duty rows, totals summing to 24.00, remarks, restart recap, and one exported page per day. These are planned sheets, not signed records. |
 | 2:05–2:55 | Architecture diagram and backend services      | Pure minute-based HOS functions; no I/O in the engine/log builder. Provider mileage drives scheduling at 55 mph. One ORS truck-routing request uses all three points.  |
 | 2:55–3:30 | Tests and representative boundary cases        | Exact limits, independent schedule replay, property-style invariants, full-day coverage, frontend contract checks, keyboard focus, and bounded service wake-up.        |
-| 3:30–4:00 | GitHub merged PRs/CI, deployment configuration | Phased feature branches and regular merges; Conventional Commits, hooks, and CI. Server-only credentials, Vercel/Render separation, documented trade-offs.             |
+| 3:30–4:00 | GitHub merged PRs/CI, deployment configuration | Small feature branches and reviewed merges; Conventional Commits, hooks, and CI. Server-only credentials, Vercel/Render separation, documented trade-offs.             |
 
 Useful source files to open before recording:
 
-- `backend/trips/services/hos_engine.py`: clocks and binding-limit decisions.
-- `backend/trips/tests/test_hos_engine.py`: exact limits and independent replay.
-- `backend/trips/services/log_builder.py`: midnight splitting and exact totals.
-- `frontend/src/components/daily-log-sheet.tsx`: SVG rendering.
-- `frontend/src/lib/log-export.tsx`: complete sequential PDF/PNG capture.
-- `backend/config/production_settings.py` and `render.yaml`: deployment boundary.
-- `README.md`: architecture, HOS table, assumptions, and setup.
+- [HOS engine](../backend/trips/services/hos_engine.py): clocks and binding-limit decisions.
+- [HOS tests](../backend/trips/tests/test_hos_engine.py): exact limits and independent replay.
+- [Log builder](../backend/trips/services/log_builder.py): midnight splitting and exact totals.
+- [Daily log renderer](../frontend/src/components/daily-log-sheet.tsx): SVG rendering.
+- [Export implementation](../frontend/src/lib/log-export.tsx): complete sequential PDF/PNG capture.
+- [Production settings](../backend/config/production_settings.py) and [Render Blueprint](../render.yaml): deployment boundary.
+- [README](../README.md): architecture, HOS table, assumptions, and setup.
 
 Record using a demo driver, not confidential shipment details. Open the backend
 health endpoint before recording to allow a sleeping free instance to wake.
@@ -59,7 +56,7 @@ than narrating every stop. Finish by opening the downloaded PDF.
 - The only historical input is cycle usage. No unknown hours roll out of the
   cycle during the trip; a restart restores it. Historical recaps cannot be
   reconstructed from that scalar.
-- Truck mileage comes from the route provider; driving time uses the assessment's
+- Truck mileage comes from the route provider; driving time uses the planner's
   55 mph planning speed. Provider duration is a reference, not an HOS clock.
 - Logs freeze the departure offset across the trip, including DST. OFF padding
   is a display assumption. Split sleeper, team drivers, adverse extensions, and
@@ -71,22 +68,22 @@ than narrating every stop. Finish by opening the downloaded PDF.
 - Automated HTML/ARIA checks and browser keyboard/reflow/contrast checks do not
   substitute for a dedicated NVDA or VoiceOver audit.
 
-## Final owner checklist
+## Submission checklist
 
-- Merge the documentation PR only after CI is green, synchronize local `main`, and
-  remove the completed branch through the Git checkpoints in this chat.
-- Keep the [verification record](DEPLOYMENT.md#verification-record) with the
-  submission. The controlled timed idle-start test was skipped at the owner's
-  request; completed browser, API, and export checks are recorded separately.
-- The owner confirmed that only the two `.env.example` files are tracked and
-  both real `.env` paths are ignored. Preserve that hygiene in later changes;
-  never paste credentials with command output.
-- Share the production frontend and health URLs above, the repository URL, and
-  the Loom recording URL if required. The talk track is ready; the owner records
-  and shares the video.
-- Replace the screenshot placeholders in README if newer deployed screenshots
-  are desired. Existing QA images are local, ignored artifacts.
-- Create and push the annotated `v1.0.0` tag through the final owner checkpoint
-  after this documentation is merged and CI is green. The backend and frontend
-  milestones remain at
-  `v0.1.0` and `v0.2.0`; do not move those tags.
+- Share the frontend, API health, repository, and recording links above. Confirm
+  the production frontend opens without a login gate.
+- Add the public Loom URL to the [README walkthrough](../README.md#walkthrough)
+  and the links table after recording.
+- Keep the real images in the [README screenshots](../README.md#screenshots)
+  representative of the current product and below the repository file-size limit.
+- Link the dated [verification record](DEPLOYMENT.md#verification-record), and
+  record new deployment checks separately from historical results.
+- Preserve ignored secret files and review public changes using the
+  [contributing checklist](CONTRIBUTING.md). Never include credentials in shared output.
+- Reference the published annotated `v1.0.0` tag when discussing the original
+  submission. Later changes should not move existing release tags.
+
+Detailed assumptions: [HOS rules](HOS_RULES.md), [log sheets](LOG_SHEETS.md),
+[providers](PROVIDERS.md), and [accessibility](ACCESSIBILITY.md).
+
+[Back to README](../README.md)

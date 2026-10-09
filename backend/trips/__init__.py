@@ -1,1 +1,1 @@
-"""Trip planning domain and, in subsequent phases, the REST application."""
+"""Trip planning domain and stateless REST application."""
